@@ -1,0 +1,53 @@
+# Mirrors docker-compose-data.yml service "jupyter".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-jupyter
+  namespace: mlops-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-jupyter
+  template:
+    metadata:
+      labels:
+        app: data-jupyter
+    spec:
+      securityContext:
+        fsGroup: 100
+      containers:
+        - name: jupyter
+          image: jupyter/base-notebook:latest
+          ports:
+            - name: http
+              containerPort: 8888
+          env:
+            - name: JUPYTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: data-jupyter-secret
+                  key: token
+          command: ["start-notebook.sh"]
+          args:
+            - "--NotebookApp.ip=0.0.0.0"
+            - "--NotebookApp.allow_origin=*"
+          volumeMounts:
+            - name: work
+              mountPath: /home/jovyan/work
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+      volumes:
+        - name: work
+          persistentVolumeClaim:
+            claimName: data-jupyter-work-pvc

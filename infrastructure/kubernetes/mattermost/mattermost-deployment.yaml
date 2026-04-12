@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mattermost
+  namespace: mattermost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mattermost
+  template:
+    metadata:
+      labels:
+        app: mattermost
+    spec:
+      containers:
+        - name: mattermost
+          image: mattermost/mattermost-team-edition:latest
+          ports:
+            - containerPort: 8065
+          env:
+            - name: MM_SQLSETTINGS_DRIVERNAME
+              value: postgres
+            - name: MM_SQLSETTINGS_DATASOURCE
+              valueFrom:
+                secretKeyRef:
+                  name: mattermost-app-secret
+                  key: datasource
+            # Public URL users use (must match Ingress host). Update if floating IP / nip.io changes.
+            - name: MM_SERVICESETTINGS_SITEURL
+              value: "http://192-5-87-47.nip.io"
+            - name: MM_SERVICESETTINGS_LISTENADDRESS
+              value: ":8065"
+            # Plain HTTP behind ingress (empty = no TLS at Mattermost)
+            - name: MM_SERVICESETTINGS_CONNECTION_SECURITY
+              value: ""
+          readinessProbe:
+            httpGet:
+              path: /api/v4/system/ping
+              port: 8065
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: mattermost-data
+              mountPath: /mattermost/data
+      volumes:
+        - name: mattermost-data
+          persistentVolumeClaim:
+            claimName: mattermost-data-pvc

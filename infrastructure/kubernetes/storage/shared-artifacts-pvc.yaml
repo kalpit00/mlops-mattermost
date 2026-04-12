@@ -1,0 +1,13 @@
+# MinIO object storage (/data). RWO: mount on the MinIO pod only.
+# Binds when the MinIO pod is scheduled (local-path WaitForFirstConsumer).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shared-artifacts-pvc
+  namespace: platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

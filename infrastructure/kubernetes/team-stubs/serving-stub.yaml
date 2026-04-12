@@ -1,0 +1,72 @@
+# Serving workload derived from:
+# - Dockerfile.serving
+# - Dockerfile.multiworker (uses UVICORN_WORKERS env var)
+# Replace `image:` with the pushed registry image once available.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-serving
+  namespace: mlops-serving
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-serving
+  template:
+    metadata:
+      labels:
+        app: ml-serving
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/example/serving:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: UVICORN_WORKERS
+              value: "4"
+          command:
+            - uvicorn
+            - app.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --workers
+            - "4"
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-serving
+  namespace: mlops-serving
+spec:
+  selector:
+    app: ml-serving
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+  type: ClusterIP

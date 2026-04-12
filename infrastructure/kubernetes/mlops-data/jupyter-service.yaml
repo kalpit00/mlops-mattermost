@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-jupyter
+  namespace: mlops-data
+spec:
+  selector:
+    app: data-jupyter
+  ports:
+    - name: http
+      port: 8888
+      targetPort: http
+  type: ClusterIP

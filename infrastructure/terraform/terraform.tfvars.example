@@ -1,0 +1,9 @@
+openstack_cloud        = "openstack"
+prefix                 = "proj17"
+image_name             = "CC-Ubuntu24.04"
+flavor_name            = "baremetal"
+keypair_name           = "id_rsa"
+network_name           = "sharednet1"
+external_network_name  = "public"
+volume_size_gb         = 50
+security_group_cidrs   = ["0.0.0.0/0"]

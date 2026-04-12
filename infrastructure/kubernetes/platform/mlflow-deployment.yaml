@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      initContainers:
+        - name: ensure-minio-bucket
+          image: minio/mc:latest
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              for i in $(seq 1 90); do
+                if mc alias set local http://minio.platform.svc.cluster.local:9000 \
+                  "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" 2>/dev/null; then
+                  break
+                fi
+                sleep 2
+              done
+              mc mb --ignore-existing local/mlflow-artifacts
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:latest
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            # S3-compatible artifact store (MinIO)
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-user
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "http://minio.platform.svc.cluster.local:9000"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+            # DNS rebinding protection: allow Host from nginx Ingress (see platform-ingress.yaml).
+            # Use your MLflow hostname(s); * is OK for class demos on a private FIP.
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "*"
+          args:
+            - mlflow
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "5000"
+            # Metadata DB on PVC (durable across pod restarts)
+            - --backend-store-uri
+            - sqlite:////mlflow-data/mlflow.db
+            # Artifacts in MinIO (durable on MinIO PVC)
+            - --default-artifact-root
+            - s3://mlflow-artifacts/
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /mlflow-data
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: mlflow-data-pvc

@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  minio:
+    image: minio/minio
+    container_name: moderation-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - /mnt/data/minio:/data
+    restart: unless-stopped
+
+  jupyter:
+    image: jupyter/base-notebook:latest
+    container_name: moderation-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      JUPYTER_TOKEN: dev
+    volumes:
+      - /mnt/data/moderation-data:/home/jovyan/work
+    command: start-notebook.sh --NotebookApp.token='dev' --NotebookApp.ip='0.0.0.0' --NotebookApp.allow_origin='*'
+    restart: unless-stopped
