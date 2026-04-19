@@ -16,6 +16,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/public/shared/request"
 	"github.com/mattermost/mattermost/server/public/utils"
+	"github.com/mattermost/mattermost/server/v8/channels/app/mlmoderation"
 	"github.com/pkg/errors"
 )
 
@@ -652,6 +653,14 @@ func (a *App) PermanentDeleteFlaggedPost(rctx request.CTX, actionRequest *model.
 		a.sendFlaggedPostRemovalNotification(rctx, flaggedPost, reviewerId, actionRequest.Comment, groupId)
 	})
 
+	fbMsgID := flaggedPost.Id
+	fbThreadID := mlmoderation.ThreadIDForPost(flaggedPost)
+	fbModelVer := mlmoderation.ModelVersionFromPost(flaggedPost)
+	fbLog := rctx.Logger()
+	a.Srv().Go(func() {
+		mlmoderation.MaybeRecordContentFlaggingOutcome(fbLog, fbMsgID, fbThreadID, fbModelVer, reviewerId, mlmoderation.OutcomeRemove)
+	})
+
 	return nil
 }
 
@@ -835,6 +844,14 @@ func (a *App) KeepFlaggedPost(rctx request.CTX, actionRequest *model.FlagContent
 
 	a.Srv().Go(func() {
 		a.sendKeepFlaggedPostNotification(rctx, flaggedPost, reviewerId, actionRequest.Comment, groupId)
+	})
+
+	fbMsgID := flaggedPost.Id
+	fbThreadID := mlmoderation.ThreadIDForPost(flaggedPost)
+	fbModelVer := mlmoderation.ModelVersionFromPost(flaggedPost)
+	fbLog := rctx.Logger()
+	a.Srv().Go(func() {
+		mlmoderation.MaybeRecordContentFlaggingOutcome(fbLog, fbMsgID, fbThreadID, fbModelVer, reviewerId, mlmoderation.OutcomeKeep)
 	})
 
 	return nil
