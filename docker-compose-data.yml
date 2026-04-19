@@ -1,28 +1,68 @@
+# Data stack (MinIO + Jupyter) + optional MLOps Python runners (profiles: mlops, synthetic-dev).
+#
+# 1. cp docker-compose-data.env.example .env
+# 2. Edit .env (gitignored — do not commit secrets)
+# 3. docker compose -f docker-compose-data.yml up -d minio jupyter
+# 4. docker compose -f docker-compose-data.yml --profile mlops run --rm mlops-pipelines python -m data.pipelines.cli_monitoring
+
 version: "3.8"
+
+x-mlops-pipelines-base: &mlops_pipelines_base
+  build:
+    context: .
+    dockerfile: Dockerfile.pipelines
+  working_dir: /work
+  volumes:
+    - .:/work
+  environment:
+    # Set to 0 to enable uploads to S3/MinIO (e.g., Chameleon).
+    MLOPS_SKIP_S3_UPLOAD: "${MLOPS_SKIP_S3_UPLOAD:-0}"
+    MLOPS_LOCAL_ARTIFACTS_ROOT: "${MLOPS_LOCAL_ARTIFACTS_ROOT:-data/artifacts}"
+    # Optional: S3/MinIO destination (used when MLOPS_SKIP_S3_UPLOAD=0)
+    MLOPS_S3_ENDPOINT: "${MLOPS_S3_ENDPOINT:-http://127.0.0.1:9000}"
+    MLOPS_S3_ACCESS_KEY: "${MLOPS_S3_ACCESS_KEY:-admin}"
+    MLOPS_S3_SECRET_KEY: "${MLOPS_S3_SECRET_KEY:-admin12345}"
+    MLOPS_S3_BUCKET: "${MLOPS_S3_BUCKET:-moderation-data}"
+    MLOPS_S3_REGION: "${MLOPS_S3_REGION:-us-east-1}"
 
 services:
   minio:
     image: minio/minio
     container_name: moderation-minio
     command: server /data --console-address ":9001"
+    env_file: .env
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: admin123
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - /mnt/data/minio:/data
+      - ${MINIO_DATA_VOLUME:-./.local/mlops/minio}:/data
     restart: unless-stopped
 
   jupyter:
     image: jupyter/base-notebook:latest
     container_name: moderation-jupyter
+    env_file: .env
     ports:
       - "8888:8888"
     environment:
-      JUPYTER_TOKEN: dev
+      JUPYTER_TOKEN: "${JUPYTER_TOKEN}"
     volumes:
-      - /mnt/data/moderation-data:/home/jovyan/work
-    command: start-notebook.sh --NotebookApp.token='dev' --NotebookApp.ip='0.0.0.0' --NotebookApp.allow_origin='*'
+      - ${JUPYTER_WORK_VOLUME:-./.local/mlops/jupyter}:/home/jovyan/work
+    command: >-
+      start-notebook.sh --NotebookApp.token=${JUPYTER_TOKEN}
+      --NotebookApp.ip=0.0.0.0 --NotebookApp.allow_origin='*'
     restart: unless-stopped
+
+  mlops-pipelines:
+    <<: *mlops_pipelines_base
+    profiles: ["mlops"]
+    restart: "no"
+
+  mlops-synthetic:
+    <<: *mlops_pipelines_base
+    profiles: ["synthetic-dev"]
+    command: ["python", "-m", "data.pipelines.cli_synthetic"]
+    restart: "no"

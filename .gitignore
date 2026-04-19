@@ -129,6 +129,14 @@ web/sass-files/sass/.sass-cache/
 
 # Default local file storage
 data/*
+!data/__init__.py
+!data/README.md
+!data/TESTING.md
+!data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md
+!data/pipelines/
+!data/pipelines/**
+# Local Compose / dev volumes (see docker-compose-data.env.example)
+.local/
 webapp/data/*
 api/data/*
 api4/data/*

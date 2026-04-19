@@ -28,3 +28,9 @@ kubectl apply -f jupyter-deployment.yaml -f jupyter-service.yaml
 ```
 
 Source Compose file (reference): `docker-compose-data.yml` at repo root.
+
+## Pipeline CronJobs (optional)
+
+[`pipelines-cronjobs-stub.yaml`](pipelines-cronjobs-stub.yaml) defines **stub** `CronJob` resources (drift monitor + weekly dataset build). Build and push an image from the repo root `Dockerfile.pipelines`, replace `ghcr.io/example/mlops-pipelines:latest`, add PVC/volume mounts if the job needs a checkout or shared artifact tree. This is **separate** from MinIO/Jupyter — apply only when the team schedules batch jobs in `mlops-data`.
+
+**Note:** `infrastructure/kubernetes/platform/` may already define MinIO for the platform namespace. Use either platform MinIO or this namespace’s MinIO — not two production writes to different buckets without coordination.

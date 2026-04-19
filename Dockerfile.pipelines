@@ -1,0 +1,19 @@
+# Python image for data.pipelines CLIs (mount repo at /work). Overview: data/README.md
+# Build: docker build -f Dockerfile.pipelines -t mlops-pipelines:local .
+# Run:   docker run --rm -v "${PWD}:/work" -w /work mlops-pipelines:local python -m data.pipelines.cli_monitoring
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /work
+
+COPY data/pipelines/requirements.txt /tmp/mlops-pipelines-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/mlops-pipelines-requirements.txt
+
+# Repo tree (data package + modules) expected via bind mount for local runs.
+# For CI/Kubernetes, copy minimal tree so `python -m data.pipelines.*` works without mount.
+COPY data/__init__.py data/__init__.py
+COPY data/pipelines data/pipelines
+
+CMD ["python", "-m", "data.pipelines.cli_monitoring"]

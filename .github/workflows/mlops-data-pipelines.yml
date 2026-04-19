@@ -1,0 +1,143 @@
+# Scheduled + manual runs for data/pipelines (Jigsaw ingest, synthetic, dataset build, drift monitor).
+#
+# Configure via repository Variables / Secrets (examples):
+#   MLOPS_MONITOR_TRAIN_PARQUET, MLOPS_MONITOR_REFERENCE_JSON, MLOPS_S3_*, secrets for ingest sources.
+# Optional: set variable MLOPS_MONITOR_FAIL_ON_BREACH=true to fail the scheduled job on drift.
+# Optional: set MLOPS_ENABLE_SCHEDULED_INGEST=true and provide raw Jigsaw files under the
+#   configured MLOPS_LOCAL_ARTIFACTS_ROOT (e.g. from a prior sync job) for Sunday ingest.
+# Synthetic (manual only): vars MLOPS_MM_BASE_URL, MLOPS_MM_CHANNEL_ID, MLOPS_SYNTHETIC_DELIVERY_MODE;
+#   secret MLOPS_MM_TOKEN (see data/pipelines/synthetic_messages.py).
+
+name: MLOps data pipelines
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_monitor:
+        description: Run drift / quality monitoring
+        type: boolean
+        default: true
+      run_dataset:
+        description: Build train/val/eval parquet + quality report
+        type: boolean
+        default: false
+      run_ingest:
+        description: Run Jigsaw ingestion (needs raw CSVs / env; see data/pipelines/jigsaw_ingestion)
+        type: boolean
+        default: false
+      run_synthetic:
+        description: Synthetic message generation (dev/staging; review MLOPS_SYNTHETIC_* env)
+        type: boolean
+        default: false
+  schedule:
+    - cron: "35 6 * * *"
+
+concurrency:
+  group: mlops-data-pipelines-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  pipelines:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Python
+        uses: actions/setup-python@d0b4fc4973db47288571209e2da136ba93f77de9 # v5.3.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: data/pipelines/requirements.txt
+
+      - name: Install pipeline dependencies
+        run: python -m pip install -r data/pipelines/requirements.txt
+
+      # Only export non-empty Values so unset repo Variables do not override Python defaults.
+      - name: Apply repository Variables (optional)
+        run: |
+          set -e
+          add_var() {
+            name="$1"
+            val="$2"
+            if [ -n "$val" ] && [ "$val" != "" ]; then
+              printf '%s=%s\n' "$name" "$val" >> "$GITHUB_ENV"
+            fi
+          }
+          add_var MLOPS_LOCAL_ARTIFACTS_ROOT "${{ vars.MLOPS_LOCAL_ARTIFACTS_ROOT }}"
+          add_var MLOPS_S3_ENDPOINT "${{ vars.MLOPS_S3_ENDPOINT }}"
+          add_var MLOPS_S3_ACCESS_KEY "${{ secrets.MLOPS_S3_ACCESS_KEY }}"
+          add_var MLOPS_S3_SECRET_KEY "${{ secrets.MLOPS_S3_SECRET_KEY }}"
+          add_var MLOPS_S3_BUCKET "${{ vars.MLOPS_S3_BUCKET }}"
+          add_var MLOPS_SKIP_S3_UPLOAD "${{ vars.MLOPS_SKIP_S3_UPLOAD }}"
+          add_var MLOPS_MONITOR_OUTPUT_DIR "${{ vars.MLOPS_MONITOR_OUTPUT_DIR }}"
+          add_var MLOPS_MONITOR_TRAIN_PARQUET "${{ vars.MLOPS_MONITOR_TRAIN_PARQUET }}"
+          add_var MLOPS_MONITOR_REFERENCE_JSON "${{ vars.MLOPS_MONITOR_REFERENCE_JSON }}"
+          add_var MLOPS_MONITOR_INGESTION_PARQUET "${{ vars.MLOPS_MONITOR_INGESTION_PARQUET }}"
+          add_var MLOPS_MONITOR_LIVE_FEATURES_JSONL "${{ vars.MLOPS_MONITOR_LIVE_FEATURES_JSONL }}"
+          add_var MLOPS_MONITOR_LIVE_SCORES_JSONL "${{ vars.MLOPS_MONITOR_LIVE_SCORES_JSONL }}"
+          add_var MLOPS_DATASET_OUTPUT_ROOT "${{ vars.MLOPS_DATASET_OUTPUT_ROOT }}"
+          add_var MLOPS_DATASET_LOCAL_GLOB "${{ vars.MLOPS_DATASET_LOCAL_GLOB }}"
+          add_var MLOPS_DATASET_FEEDBACK_GLOB "${{ vars.MLOPS_DATASET_FEEDBACK_GLOB }}"
+
+      - name: Manual — monitoring
+        if: github.event_name == 'workflow_dispatch' && inputs.run_monitor
+        run: python -m data.pipelines.cli_monitoring --fail-on-breach
+
+      - name: Manual — dataset build
+        if: github.event_name == 'workflow_dispatch' && inputs.run_dataset
+        run: python -m data.pipelines.cli_dataset_build --strict
+
+      - name: Manual — Jigsaw ingest
+        if: github.event_name == 'workflow_dispatch' && inputs.run_ingest
+        run: python -m data.pipelines.cli_jigsaw
+
+      - name: Manual — synthetic generation
+        if: github.event_name == 'workflow_dispatch' && inputs.run_synthetic
+        env:
+          MLOPS_MM_BASE_URL: ${{ vars.MLOPS_MM_BASE_URL }}
+          MLOPS_MM_CHANNEL_ID: ${{ vars.MLOPS_MM_CHANNEL_ID }}
+          MLOPS_SYNTHETIC_DELIVERY_MODE: ${{ vars.MLOPS_SYNTHETIC_DELIVERY_MODE }}
+          MLOPS_MM_TOKEN: ${{ secrets.MLOPS_MM_TOKEN }}
+        run: python -m data.pipelines.cli_synthetic
+
+      - name: Scheduled — drift monitor
+        if: github.event_name == 'schedule'
+        env:
+          MLOPS_MONITOR_FAIL_ON_BREACH: ${{ vars.MLOPS_MONITOR_FAIL_ON_BREACH }}
+        run: |
+          if [ "${MLOPS_MONITOR_FAIL_ON_BREACH}" = "true" ]; then
+            python -m data.pipelines.cli_monitoring --fail-on-breach
+          else
+            python -m data.pipelines.cli_monitoring
+          fi
+
+      - name: Scheduled — dataset build (daily)
+        if: github.event_name == 'schedule'
+        run: python -m data.pipelines.cli_dataset_build --strict
+
+      - name: Scheduled — Jigsaw ingest (optional, Sundays UTC)
+        if: github.event_name == 'schedule' && vars.MLOPS_ENABLE_SCHEDULED_INGEST == 'true'
+        run: |
+          if [ "$(date -u +%u)" = "7" ]; then
+            python -m data.pipelines.cli_jigsaw --no-copy
+          else
+            echo "Skip scheduled ingest (not Sunday UTC)."
+          fi
+
+      - name: Upload monitoring / quality artifacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: mlops-reports-${{ github.run_id }}
+          path: |
+            data/mlmoderation/monitoring/*.json
+            data/mlmoderation/monitoring/*.parquet
+            data/artifacts/datasets/**/quality_report.json
+          if-no-files-found: ignore

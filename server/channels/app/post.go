@@ -23,6 +23,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/i18n"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/public/shared/request"
+	"github.com/mattermost/mattermost/server/v8/channels/app/mlmoderation"
 	"github.com/mattermost/mattermost/server/v8/channels/store"
 	"github.com/mattermost/mattermost/server/v8/channels/store/sqlstore"
 	"github.com/mattermost/mattermost/server/v8/platform/services/cache"
@@ -384,6 +385,20 @@ func (a *App) CreatePost(rctx request.CTX, post *model.Post, channel *model.Chan
 
 	if a.Metrics() != nil {
 		a.Metrics().IncrementPostCreate()
+	}
+
+	// Optional MLOps: online moderation features + heuristic score (async JSONL logs).
+	// Disabled unless MM_MLMODERATION_ENABLE_ONLINE_FEATURES is set.
+	if mlmoderation.Enabled() &&
+		rpost.Type != model.PostTypeBurnOnRead &&
+		!strings.HasPrefix(rpost.Type, model.PostSystemMessagePrefix) {
+		mlogger := rctx.Logger()
+		postID, postUserID, postChannelID, postMessage := rpost.Id, rpost.UserId, rpost.ChannelId, rpost.Message
+		chType := channel.Type
+		authorBot := user.IsBot
+		a.Srv().Go(func() {
+			mlmoderation.MaybeProcessNewPost(mlogger, postID, postUserID, postChannelID, postMessage, chType, authorBot)
+		})
 	}
 
 	if len(fileIDs) > 0 {
