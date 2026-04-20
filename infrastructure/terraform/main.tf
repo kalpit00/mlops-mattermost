@@ -37,9 +37,13 @@ resource "openstack_networking_secgroup_rule_v2" "https" {
 }
 
 resource "openstack_compute_instance_v2" "cluster_node" {
-  name        = "${var.prefix}-node-1"
-  image_name  = var.image_name
-  flavor_name = var.flavor_name
+  name       = "${var.prefix}-node-1"
+  image_name = var.image_name
+  # Blazar flavor:instance leases register a dedicated Nova flavor whose ID is the reservation UUID
+  # (see `openstack flavor list` → name `reservation:<uuid>`). Using plain m1.medium often yields
+  # "No valid host" when only leased capacity exists.
+  flavor_name = trimspace(var.reservation_id) == "" ? var.flavor_name : null
+  flavor_id   = trimspace(var.reservation_id) != "" ? var.reservation_id : null
   key_pair    = var.keypair_name
 
   security_groups = [openstack_networking_secgroup_v2.cluster.name]
@@ -70,6 +74,7 @@ data "openstack_networking_port_v2" "cluster_node_sharednet" {
 }
 
 resource "openstack_networking_floatingip_associate_v2" "associate" {
-  floating_ip = openstack_networking_floatingip_v2.public_ip.id
+  # Provider expects the floating IP *address* (e.g. 129.x.x.x), not the Neutron FIP id — using .id triggers a bad lookup.
+  floating_ip = openstack_networking_floatingip_v2.public_ip.address
   port_id     = data.openstack_networking_port_v2.cluster_node_sharednet.id
 }
