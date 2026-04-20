@@ -17,10 +17,35 @@ spec:
           imagePullPolicy: IfNotPresent
           command:
             - python
-            - train.py
+            - -m
+            - training.train
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
+            # Platform MLflow (in-cluster)
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.platform.svc.cluster.local:5000"
+            # Config selection (one of training/configs/*.yaml baked into the image)
+            - name: TRAIN_CONFIG
+              value: "/app/training/configs/small.yaml"
+            # Optional: register under a friendly model name
+            - name: MLFLOW_MODEL_NAME
+              value: "tfidf_logreg"
+            # MinIO access for downloading seed data / logs (set via Secret in real deployment)
+            - name: MLOPS_S3_ENDPOINT
+              value: "http://minio.platform.svc.cluster.local:9000"
+            - name: MLOPS_S3_REGION
+              value: "us-east-1"
+            - name: MLOPS_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-user
+            - name: MLOPS_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
           resources:
             requests:
               cpu: "250m"
