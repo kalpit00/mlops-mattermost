@@ -5,7 +5,7 @@ seed: 42
 threshold: 0.5
 
 data:
-  seed_csv_s3_uri: "" # e.g. s3://moderation-data/jigsaw/train.csv (optional if seed_csv_local_path set)
+  seed_csv_s3_uri: "s3://moderation-data/raw/jigsaw/train.csv"
   seed_csv_local_path: "" # e.g. /data/train.csv
   text_column: comment_text
   label_column: toxic

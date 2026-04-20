@@ -7,7 +7,7 @@ This folder contains the **training-owned** pipeline for the Mattermost moderati
 ### Seed dataset (Jigsaw)
 Configured via `training/configs/*.yaml`:
 - `data.seed_csv_local_path` (e.g. `/data/train.csv`), or
-- `data.seed_csv_s3_uri` (e.g. `s3://moderation-data/jigsaw/train.csv`)
+- `data.seed_csv_s3_uri` (default in-repo: `s3://moderation-data/raw/jigsaw/train.csv`)
 
 ### Optional production feedback (Mattermost)
 If you provide both URIs, training will join them to create in-domain labeled examples:
