@@ -72,7 +72,11 @@ func newRuntimeFromEnv() *Runtime {
 	fv := envOr("MM_MLMODERATION_FEATURE_VERSION", DefaultFeatureVer)
 	r.features = &FeatureComputer{Priors: r.priors, FeatureVersion: fv}
 	mv := envOr("MM_MLMODERATION_MODEL_VERSION", DefaultModelVersion)
-	r.scorer = &HeuristicScorer{ModelVersion: mv}
+	if u := strings.TrimSpace(os.Getenv("MM_MLMODERATION_INFERENCE_URL")); u != "" {
+		r.scorer = NewHTTPScorerFromEnv(u, mv)
+	} else {
+		r.scorer = &HeuristicScorer{ModelVersion: mv}
+	}
 	if r.logDir == "" {
 		r.logDir = "data/mlmoderation/logs"
 	}

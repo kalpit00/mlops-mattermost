@@ -22,6 +22,8 @@ mm_datasource="postgres://${MM_DB_USERNAME}:${MM_DB_PASSWORD}@${MM_DB_HOST}:${MM
 
 kubectl create namespace mattermost --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace mlops-training --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace mlops-serving --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n mattermost create secret generic mattermost-db-secret \
   --from-literal=username="${MM_DB_USERNAME}" \
@@ -33,6 +35,17 @@ kubectl -n mattermost create secret generic mattermost-app-secret \
   --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n platform create secret generic minio-secret \
+  --from-literal=root-user="${MINIO_ROOT_USER}" \
+  --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Team workloads (training jobs + serving initContainer) also need MinIO credentials, but Secrets are namespace-scoped.
+kubectl -n mlops-training create secret generic minio-secret \
+  --from-literal=root-user="${MINIO_ROOT_USER}" \
+  --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n mlops-serving create secret generic minio-secret \
   --from-literal=root-user="${MINIO_ROOT_USER}" \
   --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
   --dry-run=client -o yaml | kubectl apply -f -

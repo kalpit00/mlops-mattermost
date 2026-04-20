@@ -13,7 +13,8 @@ data:
 feedback:
   # Optional: incorporate Mattermost moderation feedback by joining features+feedback logs.
   features_jsonl_s3_uri: "" # e.g. s3://moderation-data/mlmoderation/logs/online_features_v1.jsonl
-  feedback_jsonl_s3_uri: "" # e.g. s3://moderation-data/mlmoderation/feedback/moderation_feedback_v1.jsonl
+  # Preferred: moderation_feedback_v2.jsonl includes `text` + labels (no join required).
+  feedback_jsonl_s3_uri: "s3://moderation-data/mlmoderation/feedback/moderation_feedback_v2.jsonl"
   max_rows: 50000
 
 model:

@@ -10,7 +10,14 @@ Configured via `training/configs/*.yaml`:
 - `data.seed_csv_s3_uri` (default in-repo: `s3://moderation-data/raw/jigsaw/train.csv`)
 
 ### Optional production feedback (Mattermost)
-If you provide both URIs, training will join them to create in-domain labeled examples:
+Preferred path (no join): point `feedback.feedback_jsonl_s3_uri` at:
+
+- `s3://moderation-data/mlmoderation/feedback/moderation_feedback_v2.jsonl`
+
+This file includes `text` + `moderation_label` and can be appended by the Mattermost server when feedback capture is enabled.
+
+Fallback path (join): if you only have v1 feedback without text, set:
+
 - `feedback.features_jsonl_s3_uri`: `online_features_v1.jsonl` (contains `post_id`, `text`)
 - `feedback.feedback_jsonl_s3_uri`: `moderation_feedback_v1.jsonl` (contains `message_id`, `moderation_label`)
 
@@ -18,8 +25,13 @@ The join key is `post_id == message_id`.
 
 ## Outputs
 - Logs params + metrics + artifacts to MLflow (`MLFLOW_TRACKING_URI`)
-- Saves `outputs/model.joblib`, `outputs/vectorizer.joblib`, `outputs/config_used.yaml`
+- Saves `outputs/tfidf_logreg_pipeline.joblib` (TF‑IDF + LogReg sklearn `Pipeline`) plus `outputs/config_used.yaml`
 - Registers a model version in MLflow **only if quality gates pass** (see `gates.*` in config)
+
+## Scheduled retraining (Kubernetes)
+See: `infrastructure/kubernetes/mlops-training/retrain-cronjob.yaml`
+
+It is also applied by `infrastructure/scripts/deploy-all.sh` if the `kubernetes/mlops-training/` directory exists.
 
 ## Running (container)
 Environment variables:

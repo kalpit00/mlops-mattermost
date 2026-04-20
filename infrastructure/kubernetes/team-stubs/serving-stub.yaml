@@ -18,6 +18,41 @@ spec:
       labels:
         app: ml-serving
     spec:
+      initContainers:
+        - name: fetch-model
+          image: minio/mc:latest
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
+            # MLflow artifact root in this repo is `s3://mlflow-artifacts/` (see `platform/mlflow-deployment.yaml`).
+            # Typical pipeline artifact path (from `training/train.py`):
+            #   s3://mlflow-artifacts/<experiment_id>/<run_id>/artifacts/outputs/tfidf_logreg_pipeline.joblib
+            #
+            # If you copy/promote models into another bucket (e.g. `moderation-data/models/...`), use that URI instead.
+            - name: MODEL_S3_URI
+              value: "REPLACE_ME"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              if [ -z "${MODEL_S3_URI}" ] || [ "${MODEL_S3_URI}" = "REPLACE_ME" ]; then
+                echo "MODEL_S3_URI not set; expected a trained pipeline artifact in MinIO."
+                exit 1
+              fi
+              mc alias set platform http://minio.platform.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              # mc cp supports s3://bucket/key paths.
+              mc cp "${MODEL_S3_URI}" /models/tfidf_logreg_pipeline.joblib
+          volumeMounts:
+            - name: model
+              mountPath: /models
       containers:
         - name: api
           image: ghcr.io/example/serving:latest
@@ -25,8 +60,10 @@ spec:
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
-            - name: UVICORN_WORKERS
-              value: "4"
+            - name: MODEL_PATH
+              value: "/models/tfidf_logreg_pipeline.joblib"
+            - name: SERVING_MODEL_VERSION
+              value: "tfidf-logreg"
           command:
             - uvicorn
             - app.main:app
@@ -34,18 +71,18 @@ spec:
             - 0.0.0.0
             - --port
             - "8000"
-            - --workers
-            - "4"
           ports:
             - name: http
               containerPort: 8000
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /health
               port: http
             initialDelaySeconds: 20
             periodSeconds: 20
@@ -56,6 +93,12 @@ spec:
             limits:
               cpu: "2"
               memory: "2Gi"
+          volumeMounts:
+            - name: model
+              mountPath: /models
+      volumes:
+        - name: model
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
