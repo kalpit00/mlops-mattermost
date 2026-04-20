@@ -1,0 +1,33 @@
+experiment_name: moderation
+run_name: small_lr_tfidf
+
+seed: 42
+threshold: 0.5
+
+data:
+  seed_csv_s3_uri: ""
+  seed_csv_local_path: ""
+  text_column: comment_text
+  label_column: toxic
+
+feedback:
+  features_jsonl_s3_uri: ""
+  feedback_jsonl_s3_uri: ""
+  max_rows: 50000
+
+model:
+  vectorizer: tfidf
+  max_features: 10000
+  ngram_range: [1, 1]
+  min_df: 2
+  estimator: logreg
+  C: 1.0
+  class_weight: null
+  max_iter: 1000
+
+runtime:
+  n_jobs: -1
+
+gates:
+  min_val_roc_auc: 0.95
+  min_val_recall: 0.55

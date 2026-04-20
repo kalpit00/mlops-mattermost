@@ -656,9 +656,20 @@ func (a *App) PermanentDeleteFlaggedPost(rctx request.CTX, actionRequest *model.
 	fbMsgID := flaggedPost.Id
 	fbThreadID := mlmoderation.ThreadIDForPost(flaggedPost)
 	fbModelVer := mlmoderation.ModelVersionFromPost(flaggedPost)
+	fbText := flaggedPost.Message
+	fbUserID := flaggedPost.UserId
 	fbLog := rctx.Logger()
 	a.Srv().Go(func() {
-		mlmoderation.MaybeRecordContentFlaggingOutcome(fbLog, fbMsgID, fbThreadID, fbModelVer, reviewerId, mlmoderation.OutcomeRemove)
+		mlmoderation.MaybeRecordContentFlaggingOutcome(
+			fbLog,
+			fbMsgID,
+			fbThreadID,
+			fbModelVer,
+			reviewerId,
+			fbText,
+			fbUserID,
+			mlmoderation.OutcomeRemove,
+		)
 	})
 
 	return nil
@@ -849,9 +860,20 @@ func (a *App) KeepFlaggedPost(rctx request.CTX, actionRequest *model.FlagContent
 	fbMsgID := flaggedPost.Id
 	fbThreadID := mlmoderation.ThreadIDForPost(flaggedPost)
 	fbModelVer := mlmoderation.ModelVersionFromPost(flaggedPost)
+	fbText := flaggedPost.Message
+	fbUserID := flaggedPost.UserId
 	fbLog := rctx.Logger()
 	a.Srv().Go(func() {
-		mlmoderation.MaybeRecordContentFlaggingOutcome(fbLog, fbMsgID, fbThreadID, fbModelVer, reviewerId, mlmoderation.OutcomeKeep)
+		mlmoderation.MaybeRecordContentFlaggingOutcome(
+			fbLog,
+			fbMsgID,
+			fbThreadID,
+			fbModelVer,
+			reviewerId,
+			fbText,
+			fbUserID,
+			mlmoderation.OutcomeKeep,
+		)
 	})
 
 	return nil

@@ -34,6 +34,15 @@ spec:
             # Plain HTTP behind ingress (empty = no TLS at Mattermost)
             - name: MM_SERVICESETTINGS_CONNECTION_SECURITY
               value: ""
+            # ML moderation logging (writes JSONL under the persistent /mattermost/data mount)
+            - name: MM_MLMODERATION_ENABLE_ONLINE_FEATURES
+              value: "true"
+            - name: MM_MLMODERATION_ENABLE_FEEDBACK_CAPTURE
+              value: "true"
+            - name: MM_MLMODERATION_LOG_DIR
+              value: "/mattermost/data/mlmoderation/logs"
+            - name: MM_MLMODERATION_FEEDBACK_LOG_DIR
+              value: "/mattermost/data/mlmoderation/feedback"
           readinessProbe:
             httpGet:
               path: /api/v4/system/ping
@@ -41,6 +50,41 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
+          volumeMounts:
+            - name: mattermost-data
+              mountPath: /mattermost/data
+        - name: mlmoderation-log-uploader
+          # Sidecar: periodically uploads ML moderation logs from the PVC to platform MinIO.
+          # Requires a Secret named `minio-secret` in the `mattermost` namespace with keys:
+          # - root-user
+          # - root-password
+          image: minio/mc:latest
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
+            - name: MLOPS_S3_BUCKET
+              value: "moderation-data"
+            - name: SYNC_INTERVAL_SEC
+              value: "60"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              mc alias set platform http://minio.platform.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              mc mb --ignore-existing "platform/$MLOPS_S3_BUCKET"
+              while true; do
+                # Mirror logs + feedback (JSONL) into MinIO for training.
+                mc mirror --overwrite --remove /mattermost/data/mlmoderation "platform/$MLOPS_S3_BUCKET/mlmoderation" || true
+                sleep "$SYNC_INTERVAL_SEC"
+              done
           volumeMounts:
             - name: mattermost-data
               mountPath: /mattermost/data
