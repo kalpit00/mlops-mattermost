@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+kubectl() { command kubectl --request-timeout=120s "$@"; }
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 K8S_DIR="${INFRA_DIR}/kubernetes/mlops-data"
