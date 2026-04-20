@@ -1,3 +1,5 @@
+# Single cluster MinIO (datasets: moderation-data; MLflow artifacts: mlflow-artifacts).
+# Data pipelines: mlops-data/pipelines-cronjobs.yaml; training: training/configs/*.yaml; Mattermost: mattermost-deployment sidecar.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

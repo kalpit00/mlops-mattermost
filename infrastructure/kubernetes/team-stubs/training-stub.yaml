@@ -1,6 +1,10 @@
 # Training workload derived from:
 # - Dockerfile.training (CMD ["python", "train.py"])
+# - training/train.py, training/configs/*.yaml (S3 URIs under s3://moderation-data/ on platform MinIO)
 # Replace `image:` with the pushed registry image once available.
+#
+# Requires `minio-secret` in namespace mlops-training with the same keys as platform MinIO
+# (root-user, root-password). Example: copy from -n platform, or kubectl create ... matching create-secrets.sh
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -34,6 +38,7 @@ spec:
             # MinIO access for downloading seed data / logs (set via Secret in real deployment)
             - name: MLOPS_S3_ENDPOINT
               value: "http://minio.platform.svc.cluster.local:9000"
+            # URIs in TRAIN_CONFIG use s3://moderation-data/... (see training/configs/baseline.yaml)
             - name: MLOPS_S3_REGION
               value: "us-east-1"
             - name: MLOPS_S3_ACCESS_KEY

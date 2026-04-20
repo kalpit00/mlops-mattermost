@@ -1,51 +1,47 @@
 # mlops-data — Data team stack (from `docker-compose-data.yml`)
 
-Kubernetes equivalent of the Compose services **`minio`**, **`jupyter`**, and optional **`mlops-pipelines`** CronJobs.
+Kubernetes: **Jupyter** plus optional **`mlops-pipelines` CronJobs**. Object storage is **not** deployed here — use the **single MinIO** in namespace `platform` (same as Mattermost log upload, MLflow artifacts, and training data in `s3://moderation-data`).
 
-This namespace is **separate** from `platform` (which already runs MinIO + MLflow for the shared MLOps demo). Use **either** coordination with platform or this data-plane MinIO only—avoid writing the same logical datasets to two uncoordinated buckets without a plan.
-
-## What the data member added (reference)
+## What the data member owns (reference)
 
 | Artifact | Role |
 |----------|------|
-| `docker-compose-data.yml` | MinIO + Jupyter + `mlops-pipelines` / `mlops-synthetic` profiles |
-| `Dockerfile.pipelines` | Image for `python -m data.pipelines.*` (expects `data/pipelines` in Git and copied into the image) |
-| `.github/workflows/mlops-data-pipelines.yml` | CI schedules / manual runs (mirrors some of the CronJob CLIs) |
-| `server/channels/app/mlmoderation/` | Server-side hooks / logging related to moderation (not deployed by this folder) |
+| `docker-compose-data.yml` | Local dev: MinIO + Jupyter + `mlops-pipelines` profiles |
+| `Dockerfile.pipelines` | Image for `python -m data.pipelines.*` |
+| `.github/workflows/mlops-data-pipelines.yml` | CI schedules / manual runs |
+| `data/pipelines/` | Pipeline code uploaded to S3 bucket **`moderation-data`** on the shared MinIO |
 
 Ensure `data/pipelines/` is committed (see root `.gitignore` allowlist) so `Dockerfile.pipelines` builds in CI and locally.
 
 ## URLs (same floating IP as the rest of the stack; nip.io)
 
-After you apply `mlops-data-ingress.yaml`, open (update host if your FIP changes):
-
 | Service | URL |
 |---------|-----|
 | Data Jupyter | `http://data-jupyter.129-114-25-58.nip.io` |
-| Data MinIO console | `http://data-minio.129-114-25-58.nip.io` |
+| **MinIO console (shared)** | `http://minio.129-114-25-58.nip.io` (`platform` Ingress) |
+| **MLflow (training metrics/models)** | `http://mlflow.129-114-25-58.nip.io` |
 
 Log in to Jupyter with the token you set in `DATA_JUPYTER_TOKEN`.
 
 ## One-command path on the cluster node
 
-From `infrastructure/scripts/` (after `bootstrap-k8s.sh`):
+`minio-secret` in `mlops-data` must use the **same** root user/password as `kubectl -n platform get secret minio-secret` (one physical MinIO server).
 
 ```bash
-export DATA_MINIO_ROOT_USER='...'
-export DATA_MINIO_ROOT_PASSWORD='...'
+export MINIO_ROOT_USER='...'        # same as platform
+export MINIO_ROOT_PASSWORD='...'    # same as platform
 export DATA_JUPYTER_TOKEN='...'
 chmod +x create-mlops-data-secrets.sh deploy-mlops-data.sh
 ./create-mlops-data-secrets.sh
 ./deploy-mlops-data.sh
 ```
 
-## Manual apply order (same as the script)
+## Manual apply order
 
 ```bash
 kubectl apply -f ../kubernetes/namespaces/mlops-data.yaml
 # secrets: use create-mlops-data-secrets.sh
-kubectl apply -f minio-pvc.yaml -f jupyter-pvc.yaml
-kubectl apply -f minio-deployment.yaml -f minio-service.yaml
+kubectl apply -f jupyter-pvc.yaml
 kubectl apply -f jupyter-deployment.yaml -f jupyter-service.yaml
 kubectl apply -f mlops-data-ingress.yaml
 kubectl apply -f pipelines-cronjobs.yaml
@@ -55,7 +51,20 @@ kubectl apply -f pipelines-cronjobs.yaml
 
 [`pipelines-cronjobs.yaml`](pipelines-cronjobs.yaml) runs the same modules as Compose / GitHub Actions (`data.pipelines.cli_monitoring`, `data.pipelines.cli_dataset_build`). They:
 
-- Point **`MLOPS_S3_*`** at the in-cluster **`data-minio`** Service.
+- Use **`MLOPS_S3_ENDPOINT=http://minio.platform.svc.cluster.local:9000`** and **`MLOPS_S3_BUCKET=moderation-data`**.
+- Read credentials from **`minio-secret`** in namespace `mlops-data` (must match the platform MinIO credentials).
 - Start with **`suspend: true`** so a missing image does not spam failures. Build/push from `Dockerfile.pipelines`, edit the `image:` field, then set **`suspend: false`** when ready.
 
 Optional monitoring paths (`MLOPS_MONITOR_*`) can be extended later via ConfigMap or extra env on the CronJob.
+
+## Migrating from the old `data-minio` Deployment
+
+If you previously applied `minio-deployment.yaml` in `mlops-data`, delete the duplicate and its PVC only **after** copying any needed objects to the `platform` MinIO bucket `moderation-data` (or re-run pipelines):
+
+```bash
+kubectl delete deployment,svc data-minio -n mlops-data --ignore-not-found
+kubectl delete pvc data-minio-pvc -n mlops-data --ignore-not-found
+kubectl -n mlops-data delete secret data-minio-secret --ignore-not-found
+```
+
+Recreate `minio-secret` in `mlops-data` with `create-mlops-data-secrets.sh` (credentials matching `platform`).

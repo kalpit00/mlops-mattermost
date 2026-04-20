@@ -1,5 +1,5 @@
-# Browser access for the data-plane stack (Compose: minio + jupyter in docker-compose-data.yml).
-# Distinct hosts from platform/ (mlflow.*, minio.*) — these target namespace mlops-data only.
+# Browser access for Jupyter in mlops-data. Object storage uses the single platform MinIO
+# (see platform/minio-deployment.yaml, platform/platform-ingress.yaml host minio.*).
 # FIP 129.114.25.58 -> 129-114-25-58.nip.io; update when your floating IP changes.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -28,13 +28,3 @@ spec:
                 name: data-jupyter
                 port:
                   number: 8888
-    - host: "data-minio.129-114-25-58.nip.io"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: data-minio
-                port:
-                  number: 9001

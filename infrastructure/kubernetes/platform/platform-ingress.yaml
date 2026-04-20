@@ -1,5 +1,5 @@
 # Distinct hostnames on :80; same FIP as Mattermost (129.114.25.58 -> 129-114-25-58.nip.io).
-# If teammates add their own MinIO/MLflow, reconcile Ingress rules vs Service names/namespaces.
+# Single MinIO + MLflow for the stack (see platform/README.md).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

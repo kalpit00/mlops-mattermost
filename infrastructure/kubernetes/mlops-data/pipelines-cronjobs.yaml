@@ -6,7 +6,8 @@
 # 3. Ensure data/pipelines Python package is in the image (Dockerfile COPY) — required for `python -m data.pipelines.*`.
 # 4. Set suspend: false on each CronJob when ready to schedule.
 #
-# S3 targets the **mlops-data** MinIO Service (same credentials as data-minio-secret).
+# S3 targets the shared platform MinIO (namespace platform, Service minio). Requires `minio-secret`
+# in this namespace with the same root-user/root-password as platform (see create-mlops-data-secrets.sh).
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -42,7 +43,7 @@ spec:
                 - name: MLOPS_LOCAL_ARTIFACTS_ROOT
                   value: "/work/data/artifacts"
                 - name: MLOPS_S3_ENDPOINT
-                  value: "http://data-minio.mlops-data.svc.cluster.local:9000"
+                  value: "http://minio.platform.svc.cluster.local:9000"
                 - name: MLOPS_S3_BUCKET
                   value: "moderation-data"
                 - name: MLOPS_S3_REGION
@@ -50,12 +51,12 @@ spec:
                 - name: MLOPS_S3_ACCESS_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: data-minio-secret
+                      name: minio-secret
                       key: root-user
                 - name: MLOPS_S3_SECRET_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: data-minio-secret
+                      name: minio-secret
                       key: root-password
                 - name: MLOPS_MONITOR_REFERENCE_JSON
                   value: ""
@@ -110,7 +111,7 @@ spec:
                 - name: MLOPS_LOCAL_ARTIFACTS_ROOT
                   value: "/work/data/artifacts"
                 - name: MLOPS_S3_ENDPOINT
-                  value: "http://data-minio.mlops-data.svc.cluster.local:9000"
+                  value: "http://minio.platform.svc.cluster.local:9000"
                 - name: MLOPS_S3_BUCKET
                   value: "moderation-data"
                 - name: MLOPS_S3_REGION
@@ -118,12 +119,12 @@ spec:
                 - name: MLOPS_S3_ACCESS_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: data-minio-secret
+                      name: minio-secret
                       key: root-user
                 - name: MLOPS_S3_SECRET_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: data-minio-secret
+                      name: minio-secret
                       key: root-password
               volumeMounts:
                 - name: scratch

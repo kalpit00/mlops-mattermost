@@ -4,7 +4,7 @@ Helper scripts for repeatable DevOps operations.
 
 - `bootstrap-k8s.sh`: install K3s, ingress-nginx, and metrics-server.
 - `create-secrets.sh`: create/update namespace secrets from local env vars.
-- `create-mlops-data-secrets.sh`: secrets for namespace `mlops-data` (data MinIO + Jupyter).
+- `create-mlops-data-secrets.sh`: secrets for `mlops-data` (Jupyter token + `minio-secret` mirroring platform MinIO credentials).
 - `deploy-all.sh`: apply manifests in bring-up order.
 - `deploy-mlops-data.sh`: apply `kubernetes/mlops-data` (after data secrets exist).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.
