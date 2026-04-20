@@ -1,36 +1,61 @@
-# mlops-data — Data team workloads (from `docker-compose-data.yml`)
+# mlops-data — Data team stack (from `docker-compose-data.yml`)
 
-Kubernetes equivalents of the data member’s Compose stack: **MinIO** and **Jupyter**.
+Kubernetes equivalent of the Compose services **`minio`**, **`jupyter`**, and optional **`mlops-pipelines`** CronJobs.
 
-These are **not** applied by `scripts/deploy-all.sh` (platform `MinIO` already lives in `namespace: platform`). Apply here only when the team wants a **separate** data-plane MinIO + notebook in `mlops-data`.
+This namespace is **separate** from `platform` (which already runs MinIO + MLflow for the shared MLOps demo). Use **either** coordination with platform or this data-plane MinIO only—avoid writing the same logical datasets to two uncoordinated buckets without a plan.
 
-## Secrets (create before apply; do not commit values)
+## What the data member added (reference)
+
+| Artifact | Role |
+|----------|------|
+| `docker-compose-data.yml` | MinIO + Jupyter + `mlops-pipelines` / `mlops-synthetic` profiles |
+| `Dockerfile.pipelines` | Image for `python -m data.pipelines.*` (expects `data/pipelines` in Git and copied into the image) |
+| `.github/workflows/mlops-data-pipelines.yml` | CI schedules / manual runs (mirrors some of the CronJob CLIs) |
+| `server/channels/app/mlmoderation/` | Server-side hooks / logging related to moderation (not deployed by this folder) |
+
+Ensure `data/pipelines/` is committed (see root `.gitignore` allowlist) so `Dockerfile.pipelines` builds in CI and locally.
+
+## URLs (same floating IP as the rest of the stack; nip.io)
+
+After you apply `mlops-data-ingress.yaml`, open (update host if your FIP changes):
+
+| Service | URL |
+|---------|-----|
+| Data Jupyter | `http://data-jupyter.129-114-25-58.nip.io` |
+| Data MinIO console | `http://data-minio.129-114-25-58.nip.io` |
+
+Log in to Jupyter with the token you set in `DATA_JUPYTER_TOKEN`.
+
+## One-command path on the cluster node
+
+From `infrastructure/scripts/` (after `bootstrap-k8s.sh`):
 
 ```bash
-kubectl create namespace mlops-data --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl -n mlops-data create secret generic data-minio-secret \
-  --from-literal=root-user='REPLACE_ME' \
-  --from-literal=root-password='REPLACE_ME' \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl -n mlops-data create secret generic data-jupyter-secret \
-  --from-literal=token='REPLACE_ME' \
-  --dry-run=client -o yaml | kubectl apply -f -
+export DATA_MINIO_ROOT_USER='...'
+export DATA_MINIO_ROOT_PASSWORD='...'
+export DATA_JUPYTER_TOKEN='...'
+chmod +x create-mlops-data-secrets.sh deploy-mlops-data.sh
+./create-mlops-data-secrets.sh
+./deploy-mlops-data.sh
 ```
 
-## Apply order
+## Manual apply order (same as the script)
 
 ```bash
+kubectl apply -f ../kubernetes/namespaces/mlops-data.yaml
+# secrets: use create-mlops-data-secrets.sh
 kubectl apply -f minio-pvc.yaml -f jupyter-pvc.yaml
 kubectl apply -f minio-deployment.yaml -f minio-service.yaml
 kubectl apply -f jupyter-deployment.yaml -f jupyter-service.yaml
+kubectl apply -f mlops-data-ingress.yaml
+kubectl apply -f pipelines-cronjobs.yaml
 ```
 
-Source Compose file (reference): `docker-compose-data.yml` at repo root.
+## Pipeline CronJobs
 
-## Pipeline CronJobs (optional)
+[`pipelines-cronjobs.yaml`](pipelines-cronjobs.yaml) runs the same modules as Compose / GitHub Actions (`data.pipelines.cli_monitoring`, `data.pipelines.cli_dataset_build`). They:
 
-[`pipelines-cronjobs-stub.yaml`](pipelines-cronjobs-stub.yaml) defines **stub** `CronJob` resources (drift monitor + weekly dataset build). Build and push an image from the repo root `Dockerfile.pipelines`, replace `ghcr.io/example/mlops-pipelines:latest`, add PVC/volume mounts if the job needs a checkout or shared artifact tree. This is **separate** from MinIO/Jupyter — apply only when the team schedules batch jobs in `mlops-data`.
+- Point **`MLOPS_S3_*`** at the in-cluster **`data-minio`** Service.
+- Start with **`suspend: true`** so a missing image does not spam failures. Build/push from `Dockerfile.pipelines`, edit the `image:` field, then set **`suspend: false`** when ready.
 
-**Note:** `infrastructure/kubernetes/platform/` may already define MinIO for the platform namespace. Use either platform MinIO or this namespace’s MinIO — not two production writes to different buckets without coordination.
+Optional monitoring paths (`MLOPS_MONITOR_*`) can be extended later via ConfigMap or extra env on the CronJob.
