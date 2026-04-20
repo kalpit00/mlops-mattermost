@@ -1,10 +1,11 @@
-# Distinct hostnames on :80; same FIP as Mattermost (129.114.25.58 -> 129-114-25-58.nip.io).
-# If teammates add their own MinIO/MLflow, reconcile Ingress rules vs Service names/namespaces.
+# Browser access for the data-plane stack (Compose: minio + jupyter in docker-compose-data.yml).
+# Distinct hosts from platform/ (mlflow.*, minio.*) — these target namespace mlops-data only.
+# FIP 129.114.25.58 -> 129-114-25-58.nip.io; update when your floating IP changes.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: platform
-  namespace: platform
+  name: mlops-data
+  namespace: mlops-data
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 256m
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
@@ -17,23 +18,23 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: "mlflow.129-114-25-58.nip.io"
+    - host: "data-jupyter.129-114-25-58.nip.io"
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: mlflow
+                name: data-jupyter
                 port:
-                  number: 5000
-    - host: "minio.129-114-25-58.nip.io"
+                  number: 8888
+    - host: "data-minio.129-114-25-58.nip.io"
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: minio
+                name: data-minio
                 port:
                   number: 9001

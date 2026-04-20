@@ -41,3 +41,4 @@ This directory is the source of truth for DevOps/Platform artifacts used to depl
 8. Deploy MinIO and MLflow manifests.
 9. Verify pods, PVCs, services, and ingress resources.
 10. Open service endpoints in browser and validate functionality.
+11. Optional data stack: `scripts/create-mlops-data-secrets.sh` then `scripts/deploy-mlops-data.sh` (see `kubernetes/mlops-data/README.md`).

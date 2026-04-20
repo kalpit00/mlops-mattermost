@@ -6,4 +6,4 @@ This folder stores grading-support materials and operator notes.
 - container matrix source notes
 - demo checklist
 - repository artifact usage/runbook
-- [Chameleon (CHI@UC) runbook — proj17](chameleon-runbook.md)
+- [Chameleon (KVM@TACC) runbook — proj17](chameleon-runbook.md)

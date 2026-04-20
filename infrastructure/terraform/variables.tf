@@ -20,6 +20,12 @@ variable "flavor_name" {
   type        = string
 }
 
+variable "reservation_id" {
+  description = "Blazar flavor:instance reservation UUID from lease details (same id as the reservation row; `openstack flavor list` shows it as flavor name reservation:<uuid>). When set, used as Nova flavor_id. Leave empty to use flavor_name only (e.g. m1.medium when unleased capacity exists)."
+  type        = string
+  default     = ""
+}
+
 variable "keypair_name" {
   description = "OpenStack keypair name to attach to instance."
   type        = string

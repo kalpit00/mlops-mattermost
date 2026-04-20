@@ -171,6 +171,15 @@ docker-compose.override.yaml
 .aider*
 .env
 
+# OpenStack / Terraform (Chameleon): never commit state, local vars, or credentials
+infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.*
+infrastructure/terraform/terraform.tfvars
+infrastructure/terraform/crash.log
+infrastructure/terraform/clouds.yaml
+infrastructure/terraform/*-openrc.sh
+
 **/CLAUDE.local.md
 **/CLAUDE.md
 .cursorrules
