@@ -26,9 +26,9 @@ spec:
                 secretKeyRef:
                   name: mattermost-app-secret
                   key: datasource
-            # Public URL users use (must match Ingress host). Update if floating IP / nip.io changes.
+            # Must match Mattermost Ingress host (nip.io encodes the Chameleon floating IP).
             - name: MM_SERVICESETTINGS_SITEURL
-              value: "http://192-5-87-47.nip.io"
+              value: "http://129-114-25-58.nip.io"
             - name: MM_SERVICESETTINGS_LISTENADDRESS
               value: ":8065"
             # Plain HTTP behind ingress (empty = no TLS at Mattermost)

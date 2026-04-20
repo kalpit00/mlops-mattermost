@@ -1,8 +1,5 @@
-# Browser access for platform demos. nip.io: use dotted IP in the hostname
-# (same floating IP as Mattermost). Example for 192.5.87.47:
-#   mlflow.192.5.87.47.nip.io  ->  MLflow UI
-#   minio.192.5.87.47.nip.io   ->  MinIO Console (:9001)
-# If your IP changes, update these hosts to match.
+# Distinct hostnames on :80; same FIP as Mattermost (129.114.25.58 -> 129-114-25-58.nip.io).
+# If teammates add their own MinIO/MLflow, reconcile Ingress rules vs Service names/namespaces.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -20,7 +17,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: "mlflow.192.5.87.47.nip.io"
+    - host: "mlflow.129-114-25-58.nip.io"
       http:
         paths:
           - path: /
@@ -30,7 +27,7 @@ spec:
                 name: mlflow
                 port:
                   number: 5000
-    - host: "minio.192.5.87.47.nip.io"
+    - host: "minio.129-114-25-58.nip.io"
       http:
         paths:
           - path: /

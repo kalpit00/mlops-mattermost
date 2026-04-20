@@ -19,10 +19,8 @@ spec:
   # bootstrap-k8s.sh installs ingress-nginx; public :80 traffic hits nginx, not K3s Traefik
   ingressClassName: nginx
   rules:
-    # Kubernetes requires a DNS-style host, not a raw IP. nip.io maps this hostname to your VM:
-    #   192.5.87.47  ->  192-5-87-47.nip.io
-    # If your floating IP changes, replace dots with dashes and keep .nip.io
-    - host: "192-5-87-47.nip.io"
+    # nip.io: floating IP 129.114.25.58 -> 129-114-25-58.nip.io (update both octets when FIP changes).
+    - host: "129-114-25-58.nip.io"
       http:
         paths:
           - path: /
