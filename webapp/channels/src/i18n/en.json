@@ -7086,5 +7086,13 @@
   "yourcomputer": "Your computer",
   "youtube_video.play_button.aria_label": "Play video",
   "youtube_video.play.aria_label": "Play {videoTitle} on YouTube",
-  "youtube_video.thumbnail.alt_text": "Thumbnail for {videoTitle} on YouTube"
+  "youtube_video.thumbnail.alt_text": "Thumbnail for {videoTitle} on YouTube",
+  "moderation_ui.sidebar_link": "Moderation",
+  "moderation_ui.title": "Moderation",
+  "moderation_ui.list_title": "Alerted Messages",
+  "moderation_ui.detail_title": "Review Alert",
+  "moderation_ui.select_prompt": "Select an alert to review.",
+  "moderation_ui.action_keep": "Keep",
+  "moderation_ui.action_escalate": "Escalate",
+  "moderation_ui.action_remove": "Remove"
 }

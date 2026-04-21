@@ -1,0 +1,74 @@
+.ModerationPage {
+    padding: 16px 20px;
+
+    .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+}
+
+.ModerationList {
+    ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    li {
+        margin-bottom: 8px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        border-radius: 4px;
+    }
+
+    li.selected {
+        border-color: var(--button-bg);
+    }
+
+    button {
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 10px;
+        color: var(--center-channel-color);
+    }
+
+    .topRow, .meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+    }
+
+    .message {
+        margin: 8px 0;
+    }
+}
+
+.ModerationDetail {
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    border-radius: 4px;
+    padding: 12px;
+
+    &.empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .field {
+        margin-bottom: 8px;
+    }
+
+    .message {
+        white-space: pre-wrap;
+        padding: 8px;
+        background: rgba(var(--center-channel-color-rgb), 0.04);
+        border-radius: 4px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 8px;
+    }
+}

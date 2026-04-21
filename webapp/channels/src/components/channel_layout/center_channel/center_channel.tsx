@@ -29,6 +29,7 @@ const Drafts = makeAsyncComponent('Drafts', lazy(() => import('components/drafts
         </div>
     ),
 );
+const ModerationPage = makeAsyncComponent('ModerationPage', lazy(() => import('components/moderation_ui/moderation_page')));
 const Recaps = makeAsyncComponent('Recaps', lazy(() => import('components/recaps')),
     (
         <div className='app__content'>
@@ -117,6 +118,10 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
                         <Route
                             path={`/:team(${TEAM_NAME_PATH_PATTERN})/drafts`}
                             component={Drafts}
+                        />
+                        <Route
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/moderation`}
+                            component={ModerationPage}
                         />
                         <Route
                             path={`/:team(${TEAM_NAME_PATH_PATTERN})/${SCHEDULED_POST_URL_SUFFIX}`}

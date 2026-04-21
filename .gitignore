@@ -187,3 +187,4 @@ infrastructure/terraform/*-openrc.sh
 server/prev-report.xml
 server/prev-gotestsum.json
 server/shard-*.txt
+MLOPSPROJECTCONTEXT.md
