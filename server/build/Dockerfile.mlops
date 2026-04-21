@@ -1,0 +1,94 @@
+# MLOps / fork image: build webapp + server from this repository (includes custom moderation UI).
+#
+# Build from repository root:
+#   docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .
+#
+# The default server/build/Dockerfile downloads upstream enterprise binaries and does NOT include
+# local webapp changes (e.g. webapp/channels/src/components/moderation_ui).
+#
+# Pin linux/amd64 so the image runs on typical Chameleon/K3s x86 nodes; helper libs in the final
+# image match the Go binary architecture (important when building on Apple Silicon).
+
+FROM --platform=linux/amd64 node:24-bookworm AS webapp
+WORKDIR /src/webapp
+COPY webapp/package.json webapp/package-lock.json ./
+RUN npm ci
+COPY webapp .
+ENV NODE_OPTIONS="--max-old-space-size=8192"
+RUN npm run build
+
+FROM --platform=linux/amd64 golang:1.25-bookworm AS server
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates git make build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY NOTICE.txt README.md ./
+COPY server ./server
+COPY --from=webapp /src/webapp/channels/dist ./webapp/channels/dist
+
+ENV MM_NO_DOCKER=true
+WORKDIR /src/server
+# Makefile reads BUILD_HASH from git; minimal repo satisfies git rev-parse.
+RUN git init \
+    && git config user.email "docker@local" \
+    && git config user.name "docker" \
+    && git add -A \
+    && git commit -m "docker build"
+
+# Skip plugin download/signing (not needed for MLOps demos; speeds up and avoids GPG in CI).
+RUN make build-linux-amd64 package-prep \
+    && mkdir -p dist/linux_amd64/mattermost/prepackaged_plugins \
+    && DIST_PATH_GENERIC=dist/linux_amd64/mattermost CURRENT_PACKAGE_ARCH=linux_amd64 MM_BIN_NAME=mattermost MMCTL_BIN_NAME=mmctl make package-general
+
+# Ubuntu stage: same document-processing bits as server/build/Dockerfile for the final distroless copy.
+FROM --platform=linux/amd64 ubuntu:noble-20251013@sha256:c35e29c9450151419d9448b0fd75374fec4fff364a27f176fb458d472dfc9e54 AS deps
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+  ca-certificates \
+  curl \
+  media-types \
+  mailcap \
+  unrtf \
+  wv \
+  poppler-utils \
+  tidy \
+  tzdata \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM --platform=linux/amd64 gcr.io/distroless/base-debian12
+
+ENV PATH="/mattermost/bin:${PATH}"
+ENV MM_SERVICESETTINGS_ENABLELOCALMODE="true"
+ENV MM_INSTALL_TYPE="docker"
+
+COPY --from=deps /etc/mime.types /etc/mime.types
+COPY --from=deps --chown=2000:2000 /etc/ssl/certs /etc/ssl/certs
+COPY --from=deps /usr/bin/pdftotext /usr/bin/pdftotext
+COPY --from=deps /usr/bin/wvText /usr/bin/wvText
+COPY --from=deps /usr/bin/wvWare /usr/bin/wvWare
+COPY --from=deps /usr/bin/unrtf /usr/bin/unrtf
+COPY --from=deps /usr/bin/tidy /usr/bin/tidy
+COPY --from=deps /usr/share/wv /usr/share/wv
+COPY --from=deps /usr/lib/libpoppler.so* /usr/lib/
+COPY --from=deps /usr/lib/libfreetype.so* /usr/lib/
+COPY --from=deps /usr/lib/libpng.so* /usr/lib/
+COPY --from=deps /usr/lib/libwv.so* /usr/lib/
+COPY --from=deps /usr/lib/libtidy.so* /usr/lib/
+COPY --from=deps /usr/lib/libfontconfig.so* /usr/lib/
+
+COPY --from=server --chown=2000:2000 /src/server/dist/linux_amd64/mattermost /mattermost
+
+COPY server/build/passwd /etc/passwd
+
+USER mattermost
+
+HEALTHCHECK --interval=30s --timeout=10s \
+  CMD ["/mattermost/bin/mmctl", "system", "status", "--local"]
+
+WORKDIR /mattermost
+CMD ["/mattermost/bin/mattermost"]
+
+EXPOSE 8065 8067 8074 8075
+
+VOLUME ["/mattermost/data", "/mattermost/logs", "/mattermost/config", "/mattermost/plugins", "/mattermost/client/plugins"]

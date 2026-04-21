@@ -16,7 +16,8 @@ spec:
       containers:
         - name: mattermost
           # NOTE: `MM_MLMODERATION_*` hooks are implemented in *this fork's* server code.
-          # For integrated inference in-cluster, build/push an image from this repo and replace the image below.
+          # Build from repo root so webapp + server match (moderation UI): `docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .`
+          # Do not use `server/build/Dockerfile` alone — it downloads upstream binaries and omits local webapp changes.
           image: mattermost-mlops:local
           imagePullPolicy: IfNotPresent
           ports:

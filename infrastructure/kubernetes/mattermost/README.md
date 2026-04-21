@@ -14,6 +14,8 @@ Current manifests are starter stubs and will be updated with production-ready va
 
 **URL to share:** same as `MM_SERVICESETTINGS_SITEURL` / Ingress (e.g. `http://129-114-27-105.nip.io`). Direct signup page: `http://129-114-27-105.nip.io/signup_user_complete` (replace host if your FIP/nip.io changes).
 
+**Custom moderation UI (this fork):** the React routes live under `/:team/moderation` (same host as Mattermost). Example: `http://129-114-27-105.nip.io/<team>/moderation`. The sidebar link appears when the client bundle includes `components/moderation_ui` — build the app image with `server/build/Dockerfile.mlops` from the repo root (see `infrastructure/scripts/README.md`). A separate Service or Deployment for the webapp is not used; the Ingress already routes HTTP to the Mattermost pod, which serves the SPA and API together.
+
 Manifests set open signup and **no email verification** (no SMTP on this stack). There is **no** one-user limit in Team Edition; if only you exist, it is almost always **team access**, not global config.
 
 ### A. Let anyone with an account join your team (simplest for class)

@@ -1,0 +1,12 @@
+# Speed up `docker build -f server/build/Dockerfile.mlops` from repo root
+.git/logs
+**/node_modules
+**/.parcel-cache
+webapp/channels/dist
+server/dist
+**/tmp
+**/__pycache__
+**/*.pyc
+e2e-tests
+**/coverage
+**/.pytest_cache

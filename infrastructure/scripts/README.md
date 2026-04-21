@@ -24,10 +24,21 @@ expects you to run a Mattermost image built from this repo so it can write JSONL
 
 ### Build the local Mattermost image (run on the cluster node)
 
+**Use `server/build/Dockerfile.mlops`** (from the **repository root**) so the image includes **this fork’s webapp** (for example the custom moderation UI under `webapp/channels/src/components/moderation_ui`). The default `server/build/Dockerfile` downloads upstream enterprise binaries and does **not** embed local webapp changes.
+
 From the repo root:
 
 ```bash
-docker build -t mattermost-mlops:local -f server/build/Dockerfile server
+docker build -t mattermost-mlops:local -f server/build/Dockerfile.mlops .
+```
+
+The Dockerfile pins `linux/amd64` (matches most Chameleon VMs). If `docker build` on Apple Silicon is slow, that is QEMU emulation for the full build.
+
+On K3s, load the image into containerd (adjust if you use a registry instead):
+
+```bash
+docker save mattermost-mlops:local -o /tmp/mattermost-mlops-local.tar
+sudo k3s ctr images import /tmp/mattermost-mlops-local.tar
 ```
 
 Then re-apply the Mattermost deployment (or `deploy-all.sh`):
@@ -36,6 +47,14 @@ Then re-apply the Mattermost deployment (or `deploy-all.sh`):
 kubectl -n mattermost apply -f infrastructure/kubernetes/mattermost/mattermost-deployment.yaml
 kubectl -n mattermost rollout status deploy/mattermost
 ```
+
+### Moderation UI URL (same pod as Mattermost)
+
+The moderation pages are part of the **Mattermost web client** served by the main app on port 8065. There is no separate Kubernetes Deployment for the webapp. After you open the site URL from Ingress / `MM_SERVICESETTINGS_SITEURL`, use:
+
+`http://<SITE_HOST>/<your_team_name>/moderation`
+
+Example: `http://129-114-27-105.nip.io/myproject/moderation` (replace host and team name).
 
 ### Run the E2E check (no Mattermost API creds needed)
 
