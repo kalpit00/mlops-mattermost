@@ -68,8 +68,8 @@ COPY --from=builder /usr/lib/libfontconfig.so* /usr/lib/
 # Copy mattermost from builder stage
 COPY --from=builder --chown=2000:2000 /mattermost /mattermost
 
-# Copy passwd including mattermost user
-COPY  passwd /etc/passwd
+# Copy passwd including mattermost user (path is relative to build context, e.g. `docker build ... server`)
+COPY build/passwd /etc/passwd
 
 # We should refrain from running as privileged user
 USER mattermost
