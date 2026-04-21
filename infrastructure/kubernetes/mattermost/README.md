@@ -12,7 +12,7 @@ Current manifests are starter stubs and will be updated with production-ready va
 
 ## Share with teammates
 
-**URL to share:** same as `MM_SERVICESETTINGS_SITEURL` / Ingress (e.g. `http://129-114-25-11.nip.io`). Direct signup page: `http://129-114-25-11.nip.io/signup_user_complete` (replace host if your FIP/nip.io changes).
+**URL to share:** same as `MM_SERVICESETTINGS_SITEURL` / Ingress (e.g. `http://129-114-27-105.nip.io`). Direct signup page: `http://129-114-27-105.nip.io/signup_user_complete` (replace host if your FIP/nip.io changes).
 
 Manifests set open signup and **no email verification** (no SMTP on this stack). There is **no** one-user limit in Team Edition; if only you exist, it is almost always **team access**, not global config.
 
@@ -42,7 +42,7 @@ Use **Profile menu → Log out**, or clear site data for the nip.io host, or an 
 ### D. Sanity-check what the server advertises (from laptop or VM)
 
 ```bash
-curl -sS 'http://129-114-25-11.nip.io/api/v4/config/client' | grep -E 'EnableSignUpWithEmail|EnableOpenServer|EnableUserCreation|EnableDeveloper'
+curl -sS 'http://129-114-27-105.nip.io/api/v4/config/client' | grep -E 'EnableSignUpWithEmail|EnableOpenServer|EnableUserCreation|EnableDeveloper'
 ```
 
 You should see signup-related flags `true` where expected. If not, confirm the pod picked up the latest Deployment (`kubectl -n mattermost describe deploy mattermost`).

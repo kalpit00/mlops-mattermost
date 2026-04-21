@@ -19,8 +19,8 @@ spec:
   # bootstrap-k8s.sh installs ingress-nginx; public :80 traffic hits nginx, not K3s Traefik
   ingressClassName: nginx
   rules:
-    # nip.io: floating IP 129.114.25.11 -> 129-114-25-11.nip.io (update both octets when FIP changes).
-    - host: "129-114-25-11.nip.io"
+    # nip.io: floating IP 129.114.27.105 -> 129-114-27-105.nip.io (update both octets when FIP changes).
+    - host: "129-114-27-105.nip.io"
       http:
         paths:
           - path: /

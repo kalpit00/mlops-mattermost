@@ -28,7 +28,7 @@ spec:
                   key: datasource
             # Must match Mattermost Ingress host (nip.io encodes the Chameleon floating IP).
             - name: MM_SERVICESETTINGS_SITEURL
-              value: "http://129-114-25-11.nip.io"
+              value: "http://129-114-27-105.nip.io"
             - name: MM_SERVICESETTINGS_LISTENADDRESS
               value: ":8065"
             # Plain HTTP behind ingress (empty = no TLS at Mattermost)
