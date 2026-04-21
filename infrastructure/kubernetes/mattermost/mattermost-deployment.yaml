@@ -15,6 +15,8 @@ spec:
     spec:
       containers:
         - name: mattermost
+          # NOTE: `MM_MLMODERATION_*` hooks are implemented in *this fork's* server code.
+          # For integrated inference in-cluster, build/push an image from this repo and replace the image below.
           image: mattermost/mattermost-team-edition:latest
           ports:
             - containerPort: 8065
@@ -56,6 +58,13 @@ spec:
               value: "/mattermost/data/mlmoderation/logs"
             - name: MM_MLMODERATION_FEEDBACK_LOG_DIR
               value: "/mattermost/data/mlmoderation/feedback"
+            # Real model inference (FastAPI serving Deployment in `mlops-serving` namespace).
+            # Set after you push a serving image + configure `MODEL_S3_URI` in `team-stubs/serving-stub.yaml`.
+            - name: MM_MLMODERATION_INFERENCE_URL
+              value: "http://ml-serving.mlops-serving.svc.cluster.local:8000/score"
+            # TF‑IDF + LogReg inference can be slower than the Go default (150ms); give it room on-cluster.
+            - name: MM_MLMODERATION_INFERENCE_TIMEOUT_MS
+              value: "2000"
           readinessProbe:
             httpGet:
               path: /api/v4/system/ping

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import boto3
+from botocore.exceptions import ClientError
 import joblib
 import mlflow
 import mlflow.sklearn
@@ -14,6 +15,7 @@ import pandas as pd
 import yaml
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -77,6 +79,22 @@ def _download_s3(uri: str, dest_path: str) -> None:
     s3.download_file(bucket, key, dest_path)
 
 
+def _download_s3_optional(uri: str, dest_path: str) -> bool:
+    """Download object if it exists; return False if missing."""
+    s3 = _s3_client()
+    bucket, key = _parse_s3_uri(uri)
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+    except ClientError as e:
+        code = (e.response.get("Error") or {}).get("Code")
+        if code in ("404", "NoSuchKey", "NotFound"):
+            return False
+        raise
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    s3.download_file(bucket, key, dest_path)
+    return True
+
+
 def _load_config() -> dict:
     config_path = _require_env("TRAIN_CONFIG")
     with open(config_path, "r") as f:
@@ -110,13 +128,8 @@ def _load_feedback_joined_df(cfg: dict) -> Optional[pd.DataFrame]:
     fb_cfg = (cfg.get("feedback") or {}) if isinstance(cfg.get("feedback"), dict) else {}
     features_uri = (fb_cfg.get("features_jsonl_s3_uri") or "").strip()
     feedback_uri = (fb_cfg.get("feedback_jsonl_s3_uri") or "").strip()
-    if not features_uri or not feedback_uri:
+    if not feedback_uri:
         return None
-
-    features_path = "/tmp/online_features.jsonl"
-    feedback_path = "/tmp/mod_feedback.jsonl"
-    _download_s3(features_uri, features_path)
-    _download_s3(feedback_uri, feedback_path)
 
     def read_jsonl(path: str) -> pd.DataFrame:
         rows = []
@@ -128,7 +141,10 @@ def _load_feedback_joined_df(cfg: dict) -> Optional[pd.DataFrame]:
                 rows.append(json.loads(line))
         return pd.DataFrame(rows)
 
-    features = read_jsonl(features_path)
+    feedback_path = "/tmp/mod_feedback.jsonl"
+    if not _download_s3_optional(feedback_uri, feedback_path):
+        # Common early in rollout: feedback file not created yet.
+        return None
     feedback = read_jsonl(feedback_path)
 
     # If feedback already includes text (moderation_feedback_v2.jsonl), we can use it directly.
@@ -142,6 +158,17 @@ def _load_feedback_joined_df(cfg: dict) -> Optional[pd.DataFrame]:
         if max_rows > 0 and len(direct) > max_rows:
             direct = direct.sample(n=max_rows, random_state=int(cfg.get("seed", 42)))
         return direct
+
+    # v1 feedback rows need joining to online feature logs.
+    if not features_uri:
+        raise RuntimeError(
+            "feedback JSONL does not include `text`; set feedback.features_jsonl_s3_uri "
+            "to online_features_v1.jsonl for join-based labeling."
+        )
+
+    features_path = "/tmp/online_features.jsonl"
+    _download_s3(features_uri, features_path)
+    features = read_jsonl(features_path)
 
     # From Go schemas:
     # - FeatureRowV1: post_id, text
@@ -214,14 +241,18 @@ def main() -> None:
         min_df=int(cfg["model"]["min_df"]),
     )
 
-    X_train_vec = vec.fit_transform(X_train)
-    X_val_vec = vec.transform(X_val)
-
-    model = LogisticRegression(
+    clf = LogisticRegression(
         C=float(cfg["model"]["C"]),
         max_iter=int(cfg["model"]["max_iter"]),
         class_weight=cfg["model"]["class_weight"],
         n_jobs=int(cfg["runtime"]["n_jobs"]),
+    )
+
+    pipeline = Pipeline(
+        steps=[
+            ("tfidf", vec),
+            ("clf", clf),
+        ]
     )
 
     threshold = float(cfg["threshold"])
@@ -250,10 +281,10 @@ def main() -> None:
         )
 
         start_time = time.time()
-        model.fit(X_train_vec, y_train)
+        pipeline.fit(X_train, y_train)
         train_time_sec = time.time() - start_time
 
-        val_scores = model.predict_proba(X_val_vec)[:, 1]
+        val_scores = pipeline.predict_proba(X_val)[:, 1]
         val_preds = (val_scores >= threshold).astype(int)
 
         metrics = {
@@ -266,28 +297,32 @@ def main() -> None:
             "train_time_sec": train_time_sec,
             "train_rows": int(len(X_train)),
             "val_rows": int(len(X_val)),
-            "vocab_size": int(len(vec.vocabulary_)),
+            "vocab_size": int(len(pipeline.named_steps["tfidf"].vocabulary_)),
         }
         mlflow.log_metrics(metrics)
 
         os.makedirs("outputs", exist_ok=True)
 
-        model_path = "outputs/model.joblib"
+        pipeline_path = "outputs/tfidf_logreg_pipeline.joblib"
+        clf_path = "outputs/clf.joblib"
         vectorizer_path = "outputs/vectorizer.joblib"
         config_path = "outputs/config_used.yaml"
 
-        joblib.dump(model, model_path)
-        joblib.dump(vec, vectorizer_path)
+        joblib.dump(pipeline, pipeline_path)
+        joblib.dump(pipeline.named_steps["clf"], clf_path)
+        joblib.dump(pipeline.named_steps["tfidf"], vectorizer_path)
         with open(config_path, "w") as f:
             yaml.safe_dump(cfg, f)
 
-        mlflow.log_metric("model_size_bytes", int(os.path.getsize(model_path)))
+        mlflow.log_metric("pipeline_size_bytes", int(os.path.getsize(pipeline_path)))
+        mlflow.log_metric("model_size_bytes", int(os.path.getsize(clf_path)))
         mlflow.log_metric("vectorizer_size_bytes", int(os.path.getsize(vectorizer_path)))
 
-        mlflow.log_artifact(model_path)
+        mlflow.log_artifact(pipeline_path)
+        mlflow.log_artifact(clf_path)
         mlflow.log_artifact(vectorizer_path)
         mlflow.log_artifact(config_path)
-        mlflow.sklearn.log_model(model, artifact_path="sk_model")
+        mlflow.sklearn.log_model(pipeline, artifact_path="sk_model")
 
         gate = _apply_quality_gates(cfg, metrics)
         mlflow.log_param("quality_gate_passed", str(gate.passed).lower())
