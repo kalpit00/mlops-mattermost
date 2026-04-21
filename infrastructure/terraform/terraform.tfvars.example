@@ -1,8 +1,17 @@
+# Blazar: set reservation_id to the reservation row **flavor_id** (Horizon → lease → Reservations → flavor_id).
+# That UUID is Nova’s flavor for your leased capacity (e.g. m1.large); flavor_name is then IGNORED.
+# Empty reservation_id + flavor_name often fails on Chameleon without spare capacity — use a lease reservation instead.
+#
+# Manual VM: create the instance in Horizon (e.g. m1.large on a Blazar lease), then set existing_instance_id
+# to its Nova server UUID and leave reservation_id = "". Terraform still creates SG, volume, attach, FIP.
+# Attach security group "<prefix>-sg" to the instance (see: terraform output security_group_name).
+
 openstack_cloud       = "openstack"
 prefix                = "proj17"
 image_name            = "CC-Ubuntu24.04"
 flavor_name           = "m1.large"
 reservation_id        = ""
+existing_instance_id  = ""
 keypair_name          = "id_rsa"
 network_name          = "sharednet1"
 external_network_name = "public"

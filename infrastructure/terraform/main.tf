@@ -36,7 +36,15 @@ resource "openstack_networking_secgroup_rule_v2" "https" {
   security_group_id = openstack_networking_secgroup_v2.cluster.id
 }
 
+locals {
+  use_existing_instance = trimspace(var.existing_instance_id) != ""
+  # Nova server UUID: either supplied (manual VM) or created by Terraform below.
+  cluster_instance_id = local.use_existing_instance ? trimspace(var.existing_instance_id) : openstack_compute_instance_v2.cluster_node[0].id
+}
+
 resource "openstack_compute_instance_v2" "cluster_node" {
+  count = local.use_existing_instance ? 0 : 1
+
   name       = "${var.prefix}-node-1"
   image_name = var.image_name
   # Blazar flavor:instance leases register a dedicated Nova flavor whose ID is the reservation UUID
@@ -53,13 +61,18 @@ resource "openstack_compute_instance_v2" "cluster_node" {
   }
 }
 
+data "openstack_compute_instance_v2" "existing" {
+  count = local.use_existing_instance ? 1 : 0
+  id    = trimspace(var.existing_instance_id)
+}
+
 resource "openstack_blockstorage_volume_v3" "data" {
   name = "${var.prefix}-data"
   size = var.volume_size_gb
 }
 
 resource "openstack_compute_volume_attach_v2" "data_attach" {
-  instance_id = openstack_compute_instance_v2.cluster_node.id
+  instance_id = local.cluster_instance_id
   volume_id   = openstack_blockstorage_volume_v3.data.id
 }
 
@@ -68,9 +81,9 @@ resource "openstack_networking_floatingip_v2" "public_ip" {
 }
 
 # Provider v3+ removed openstack_compute_floatingip_associate_v2; use Neutron association by port_id.
+# device_id alone matches the VM's primary port (works for Terraform-created and manually created instances).
 data "openstack_networking_port_v2" "cluster_node_sharednet" {
-  device_id  = openstack_compute_instance_v2.cluster_node.id
-  network_id = openstack_compute_instance_v2.cluster_node.network[0].uuid
+  device_id = local.cluster_instance_id
 }
 
 resource "openstack_networking_floatingip_associate_v2" "associate" {

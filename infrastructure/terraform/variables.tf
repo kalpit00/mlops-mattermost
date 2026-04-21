@@ -21,7 +21,23 @@ variable "flavor_name" {
 }
 
 variable "reservation_id" {
-  description = "Blazar flavor:instance reservation UUID from lease details (same id as the reservation row; `openstack flavor list` shows it as flavor name reservation:<uuid>). When set, used as Nova flavor_id. Leave empty to use flavor_name only (e.g. m1.large when unleased capacity exists)."
+  description = <<-EOT
+    Blazar **flavor:instance** reservation UUID used as Nova `flavor_id` (Horizon: lease → Reservations → **flavor_id**, e.g. m1.large on that lease).
+    Same value appears in `openstack flavor list` as a flavor named `reservation:<uuid>`.
+    When set, `flavor_name` is ignored. Leave empty to create the VM with `flavor_name` only (needs spare capacity).
+    Do not confuse with the **lease** id or **project** id — use the reservation row's flavor_id.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "existing_instance_id" {
+  description = <<-EOT
+    When non-empty, Terraform does NOT create a VM: it uses this Nova server UUID (manually created in Horizon/CLI, e.g. m1.large on a Blazar lease).
+    Terraform still creates the security group, Cinder volume, volume attach, floating IP, and FIP association.
+    Attach the security group named "<prefix>-sg" (same prefix as the prefix variable) to that instance in Horizon or CLI so SSH/HTTP/HTTPS match this stack.
+    Leave empty to let Terraform create the instance (uses flavor_name / reservation_id as today).
+  EOT
   type        = string
   default     = ""
 }
