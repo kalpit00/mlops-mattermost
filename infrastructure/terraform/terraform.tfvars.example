@@ -1,7 +1,7 @@
 openstack_cloud       = "openstack"
 prefix                = "proj17"
 image_name            = "CC-Ubuntu24.04"
-flavor_name           = "m1.medium"
+flavor_name           = "m1.large"
 reservation_id        = ""
 keypair_name          = "id_rsa"
 network_name          = "sharednet1"

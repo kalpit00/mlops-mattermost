@@ -8,6 +8,7 @@ Helper scripts for repeatable DevOps operations.
 - `deploy-all.sh`: apply manifests in bring-up order.
 - `deploy-mlops-data.sh`: apply `kubernetes/mlops-data` (after data secrets exist).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.
+- `set-floating-ip-in-manifests.sh`: replace `nip.io` / `MM_SERVICESETTINGS_SITEURL` hosts after Chameleon assigns a **new** floating IP (run from repo root; see `terraform/README.md`).
 
 ## Usage notes
 

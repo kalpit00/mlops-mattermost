@@ -40,7 +40,7 @@ resource "openstack_compute_instance_v2" "cluster_node" {
   name       = "${var.prefix}-node-1"
   image_name = var.image_name
   # Blazar flavor:instance leases register a dedicated Nova flavor whose ID is the reservation UUID
-  # (see `openstack flavor list` → name `reservation:<uuid>`). Using plain m1.medium often yields
+  # (see `openstack flavor list` → name `reservation:<uuid>`). Using a small flavor when only leased capacity exists often yields
   # "No valid host" when only leased capacity exists.
   flavor_name = trimspace(var.reservation_id) == "" ? var.flavor_name : null
   flavor_id   = trimspace(var.reservation_id) != "" ? var.reservation_id : null
