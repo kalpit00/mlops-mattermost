@@ -11,11 +11,10 @@
 
 FROM --platform=linux/amd64 node:24-bookworm AS webapp
 WORKDIR /src/webapp
-COPY webapp/package.json webapp/package-lock.json ./
-RUN npm ci
+# Copy full tree before `npm ci`: postinstall runs workspace builds and needs platform/* on disk.
 COPY webapp .
 ENV NODE_OPTIONS="--max-old-space-size=8192"
-RUN npm run build
+RUN npm ci && npm run build
 
 FROM --platform=linux/amd64 golang:1.25-bookworm AS server
 RUN apt-get update && apt-get install -y --no-install-recommends \
