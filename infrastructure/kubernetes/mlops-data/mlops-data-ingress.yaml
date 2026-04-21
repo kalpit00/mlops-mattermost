@@ -1,6 +1,6 @@
 # Browser access for Jupyter in mlops-data. Object storage uses the single platform MinIO
 # (see platform/minio-deployment.yaml, platform/platform-ingress.yaml host minio.*).
-# FIP 129.114.25.58 -> 129-114-25-58.nip.io; update when your floating IP changes.
+# FIP 129.114.25.11 -> 129-114-25-11.nip.io; update when your floating IP changes.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -18,7 +18,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: "data-jupyter.129-114-25-58.nip.io"
+    - host: "data-jupyter.129-114-25-11.nip.io"
       http:
         paths:
           - path: /

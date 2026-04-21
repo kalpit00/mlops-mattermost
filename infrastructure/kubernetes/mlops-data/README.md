@@ -17,9 +17,9 @@ Ensure `data/pipelines/` is committed (see root `.gitignore` allowlist) so `Dock
 
 | Service | URL |
 |---------|-----|
-| Data Jupyter | `http://data-jupyter.129-114-25-58.nip.io` |
-| **MinIO console (shared)** | `http://minio.129-114-25-58.nip.io` (`platform` Ingress) |
-| **MLflow (training metrics/models)** | `http://mlflow.129-114-25-58.nip.io` |
+| Data Jupyter | `http://data-jupyter.129-114-25-11.nip.io` |
+| **MinIO console (shared)** | `http://minio.129-114-25-11.nip.io` (`platform` Ingress) |
+| **MLflow (training metrics/models)** | `http://mlflow.129-114-25-11.nip.io` |
 
 Log in to Jupyter with the token you set in `DATA_JUPYTER_TOKEN`.
 
