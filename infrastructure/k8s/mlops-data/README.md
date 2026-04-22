@@ -39,7 +39,7 @@ chmod +x create-mlops-data-secrets.sh deploy-mlops-data.sh
 ## Manual apply order
 
 ```bash
-kubectl apply -f ../kubernetes/namespaces/mlops-data.yaml
+kubectl apply -f ../namespaces/mlops-data.yaml
 # secrets: use create-mlops-data-secrets.sh
 kubectl apply -f jupyter-pvc.yaml
 kubectl apply -f jupyter-deployment.yaml -f jupyter-service.yaml

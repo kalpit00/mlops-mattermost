@@ -32,12 +32,12 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
 FILES=(
-  infrastructure/kubernetes/mattermost/mattermost-ingress.yaml
-  infrastructure/kubernetes/mattermost/mattermost-deployment.yaml
-  infrastructure/kubernetes/mattermost/README.md
-  infrastructure/kubernetes/platform/platform-ingress.yaml
-  infrastructure/kubernetes/mlops-data/mlops-data-ingress.yaml
-  infrastructure/kubernetes/mlops-data/README.md
+  infrastructure/k8s/mattermost/mattermost-ingress.yaml
+  infrastructure/k8s/mattermost/mattermost-deployment.yaml
+  infrastructure/k8s/mattermost/README.md
+  infrastructure/k8s/platform/platform-ingress.yaml
+  infrastructure/k8s/mlops-data/mlops-data-ingress.yaml
+  infrastructure/k8s/mlops-data/README.md
 )
 
 for f in "${FILES[@]}"; do

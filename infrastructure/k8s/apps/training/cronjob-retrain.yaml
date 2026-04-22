@@ -1,13 +1,13 @@
 # Scheduled retraining for TF-IDF + Logistic Regression.
 #
 # Prereqs:
-# - Namespace `mlops-training` exists (see infrastructure/kubernetes/namespaces/mlops-training.yaml)
+# - Namespace `mlops-training` exists (see infrastructure/k8s/namespaces/mlops-training.yaml)
 # - Secret `minio-secret` exists in `mlops-training` (copy from `platform` namespace)
 # - Training image is built/pushed and replace `image:` below
 # - MLflow is reachable in-cluster at mlflow.platform.svc.cluster.local:5000
 #
 # Notes:
-# - This mirrors the one-shot Job in ../team-stubs/training-stub.yaml, but runs on a schedule.
+# - This mirrors the one-shot Job in `job-oneshot.yaml`, but runs on a schedule.
 # - Tune schedule as needed for demos vs cost.
 apiVersion: batch/v1
 kind: CronJob

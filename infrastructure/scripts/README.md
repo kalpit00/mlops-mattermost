@@ -6,7 +6,7 @@ Helper scripts for repeatable DevOps operations.
 - `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving` — same MinIO credentials everywhere for the single cluster MinIO).
 - `create-mlops-data-secrets.sh`: secrets for `mlops-data` (Jupyter token + `minio-secret` mirroring platform MinIO credentials).
 - `deploy-all.sh`: apply manifests in bring-up order.
-- `deploy-mlops-data.sh`: apply `kubernetes/mlops-data` (after data secrets exist).
+- `deploy-mlops-data.sh`: apply `k8s/mlops-data` (after data secrets exist).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.
 - `set-floating-ip-in-manifests.sh`: replace `nip.io` / `MM_SERVICESETTINGS_SITEURL` hosts after Chameleon assigns a **new** floating IP (run from repo root; see `terraform/README.md`).
 
@@ -18,7 +18,7 @@ Helper scripts for repeatable DevOps operations.
 ## E2E: Mattermost message → score log → MinIO
 
 This repo includes `mlmoderation` hooks in the server code. The Kubernetes manifest
-[`infrastructure/kubernetes/mattermost/mattermost-deployment.yaml`](../kubernetes/mattermost/mattermost-deployment.yaml)
+[`infrastructure/k8s/mattermost/mattermost-deployment.yaml`](../k8s/mattermost/mattermost-deployment.yaml)
 expects you to run a Mattermost image built from this repo so it can write JSONL logs under the PVC, which the
 `mlmoderation-log-uploader` sidecar mirrors into MinIO.
 
@@ -44,7 +44,7 @@ sudo k3s ctr images import /tmp/mattermost-mlops-local.tar
 Then re-apply the Mattermost deployment (or `deploy-all.sh`):
 
 ```bash
-kubectl -n mattermost apply -f infrastructure/kubernetes/mattermost/mattermost-deployment.yaml
+kubectl -n mattermost apply -f infrastructure/k8s/mattermost/mattermost-deployment.yaml
 kubectl -n mattermost rollout status deploy/mattermost
 ```
 

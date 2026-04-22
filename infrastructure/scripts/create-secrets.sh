@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Expected env vars: see infrastructure/secrets.env.example (copy to infrastructure/secrets.env, then: source that file)
 
 required_vars=(
   MM_DB_USERNAME

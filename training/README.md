@@ -29,9 +29,9 @@ The join key is `post_id == message_id`.
 - Registers a model version in MLflow **only if quality gates pass** (see `gates.*` in config)
 
 ## Scheduled retraining (Kubernetes)
-See: `infrastructure/kubernetes/mlops-training/retrain-cronjob.yaml`
+See: `infrastructure/k8s/apps/training/cronjob-retrain.yaml` (and one-shot `job-oneshot.yaml`).
 
-It is also applied by `infrastructure/scripts/deploy-all.sh` if the `kubernetes/mlops-training/` directory exists.
+These are applied by `infrastructure/scripts/deploy-all.sh` with `k8s/apps/serving` and `k8s/apps/training`.
 
 ## Running (container)
 Environment variables:

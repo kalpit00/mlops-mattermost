@@ -5,10 +5,10 @@ kubectl() { command kubectl --request-timeout=120s "$@"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-K8S_DIR="${INFRA_DIR}/kubernetes/mlops-data"
+K8S_DIR="${INFRA_DIR}/k8s/mlops-data"
 
 echo "[1/3] Namespace..."
-kubectl apply -f "${INFRA_DIR}/kubernetes/namespaces/mlops-data.yaml"
+kubectl apply -f "${INFRA_DIR}/k8s/namespaces/mlops-data.yaml"
 
 echo "[2/3] Preflight: secrets (minio-secret must match platform MinIO credentials)..."
 kubectl -n mlops-data get secret minio-secret >/dev/null

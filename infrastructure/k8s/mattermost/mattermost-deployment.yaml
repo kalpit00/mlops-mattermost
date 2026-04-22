@@ -61,7 +61,7 @@ spec:
             - name: MM_MLMODERATION_FEEDBACK_LOG_DIR
               value: "/mattermost/data/mlmoderation/feedback"
             # Real model inference (FastAPI serving Deployment in `mlops-serving` namespace).
-            # Set after you push a serving image + configure `MODEL_S3_URI` in `team-stubs/serving-stub.yaml`.
+            # Set after you push a serving image + configure `MODEL_S3_URI` in `k8s/apps/serving/serving.yaml`.
             - name: MM_MLMODERATION_INFERENCE_URL
               value: "http://ml-serving.mlops-serving.svc.cluster.local:8000/score"
             # TF‑IDF + LogReg inference can be slower than the Go default (150ms); give it room on-cluster.
