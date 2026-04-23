@@ -49,8 +49,12 @@ spec:
                 exit 1
               fi
               mc alias set platform http://minio.platform.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-              # mc cp supports s3://bucket/key paths.
-              mc cp "${MODEL_S3_URI}" /models/tfidf_logreg_pipeline.joblib
+              # mc must use alias/bucket/...; plain s3:// does not use this alias and fails in-cluster.
+              SRC="${MODEL_S3_URI}"
+              case "$SRC" in
+                s3://*) SRC="platform/${SRC#s3://}" ;;
+              esac
+              mc cp "$SRC" /models/tfidf_logreg_pipeline.joblib
           volumeMounts:
             - name: model
               mountPath: /models
