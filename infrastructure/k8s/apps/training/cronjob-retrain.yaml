@@ -1,5 +1,5 @@
 # Scheduled retraining (TF‑IDF + Logistic Regression).
-# Build: docker build -f Dockerfile.training -t mlops-training:local .  (from repo root)
+# Build: `docker build -f Dockerfile.training -t mlops-training:local .` or pull: docker.io/kalpit00/mlops-training:v1
 # See: infrastructure/docs/DOCKER-BUILDS.md
 #
 # Prereqs: namespace, minio-secret, MLflow at mlflow.platform.svc.cluster.local:5000
@@ -26,7 +26,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: training
-              image: mlops-training:local
+              image: kalpit00/mlops-training:v1
               imagePullPolicy: IfNotPresent
               command:
                 - python
