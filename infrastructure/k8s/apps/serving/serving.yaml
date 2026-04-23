@@ -33,10 +33,9 @@ spec:
                 secretKeyRef:
                   name: minio-secret
                   key: root-password
-            # Object in MinIO (same as s3://mlflow-artifacts/... but use mc alias form here:
-            # YAML treats `#` as a comment, so do not use shell `${var#s3://}` in this block).
+            # MinIO key from console: mlflow-artifacts/<exp>/<run>/artifacts/tfidf_logreg_pipeline.joblib
             - name: MODEL_S3_URI
-              value: "platform/mlflow-artifacts/1/52fe525eb8354513bd73345fa26f411f/artifacts/outputs/tfidf_logreg_pipeline.joblib"
+              value: "platform/mlflow-artifacts/1/52fe525eb8354513bd73345fa26f411f/artifacts/tfidf_logreg_pipeline.joblib"
           command: ["/bin/sh", "-c"]
           args:
             - |
