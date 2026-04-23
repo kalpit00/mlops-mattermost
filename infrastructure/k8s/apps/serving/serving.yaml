@@ -33,13 +33,10 @@ spec:
                 secretKeyRef:
                   name: minio-secret
                   key: root-password
-            # MLflow artifact root in this repo is `s3://mlflow-artifacts/` (see `platform/mlflow-deployment.yaml`).
-            # Typical pipeline artifact path (from `training/train.py`):
-            #   s3://mlflow-artifacts/<experiment_id>/<run_id>/artifacts/outputs/tfidf_logreg_pipeline.joblib
-            #
-            # If you copy/promote models into another bucket (e.g. `moderation-data/models/...`), use that URI instead.
+            # Object in MinIO (same as s3://mlflow-artifacts/... but use mc alias form here:
+            # YAML treats `#` as a comment, so do not use shell `${var#s3://}` in this block).
             - name: MODEL_S3_URI
-              value: "s3://mlflow-artifacts/1/52fe525eb8354513bd73345fa26f411f/artifacts/outputs/tfidf_logreg_pipeline.joblib"
+              value: "platform/mlflow-artifacts/1/52fe525eb8354513bd73345fa26f411f/artifacts/outputs/tfidf_logreg_pipeline.joblib"
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -49,12 +46,7 @@ spec:
                 exit 1
               fi
               mc alias set platform http://minio.platform.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-              # mc must use alias/bucket/...; plain s3:// does not use this alias and fails in-cluster.
-              SRC="${MODEL_S3_URI}"
-              case "$SRC" in
-                s3://*) SRC="platform/${SRC#s3://}" ;;
-              esac
-              mc cp "$SRC" /models/tfidf_logreg_pipeline.joblib
+              mc cp "${MODEL_S3_URI}" /models/tfidf_logreg_pipeline.joblib
           volumeMounts:
             - name: model
               mountPath: /models
