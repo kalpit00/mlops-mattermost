@@ -41,9 +41,13 @@ RUN git init \
     && git commit -m "docker build"
 
 # Skip plugin download/signing (not needed for MLOps demos; speeds up and avoids GPG in CI).
+# `package-prep` writes i18n, client, config, templates, … under dist/mattermost/;
+# `package-general` only copies binaries into dist/linux_amd64/mattermost/bin.
+# The full install tree must merge both; otherwise the server exits: "unable to find i18n directory".
 RUN make build-linux-amd64 package-prep \
     && mkdir -p dist/linux_amd64/mattermost/prepackaged_plugins \
-    && DIST_PATH_GENERIC=dist/linux_amd64/mattermost CURRENT_PACKAGE_ARCH=linux_amd64 MM_BIN_NAME=mattermost MMCTL_BIN_NAME=mmctl make package-general
+    && DIST_PATH_GENERIC=dist/linux_amd64/mattermost CURRENT_PACKAGE_ARCH=linux_amd64 MM_BIN_NAME=mattermost MMCTL_BIN_NAME=mmctl make package-general \
+    && cp -a dist/mattermost/. dist/linux_amd64/mattermost/
 
 # Ubuntu stage: same document-processing bits as server/build/Dockerfile for the final distroless copy.
 FROM --platform=linux/amd64 ubuntu:noble-20251013@sha256:c35e29c9450151419d9448b0fd75374fec4fff364a27f176fb458d472dfc9e54 AS deps
