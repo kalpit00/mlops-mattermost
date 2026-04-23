@@ -57,13 +57,13 @@ COPY --from=builder /usr/bin/unrtf /usr/bin/unrtf
 COPY --from=builder /usr/bin/tidy /usr/bin/tidy
 COPY --from=builder /usr/share/wv /usr/share/wv
 
-# Copy necessary libraries for document processing utilities
-COPY --from=builder /usr/lib/libpoppler.so* /usr/lib/
-COPY --from=builder /usr/lib/libfreetype.so* /usr/lib/
-COPY --from=builder /usr/lib/libpng.so* /usr/lib/
-COPY --from=builder /usr/lib/libwv.so* /usr/lib/
-COPY --from=builder /usr/lib/libtidy.so* /usr/lib/
-COPY --from=builder /usr/lib/libfontconfig.so* /usr/lib/
+# Copy necessary libraries for document processing utilities (Ubuntu noble: .so under multiarch triplet)
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libpoppler.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libfreetype.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libpng*.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libwv.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libtidy.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libfontconfig.so* /usr/lib/x86_64-linux-gnu/
 
 # Copy mattermost from builder stage
 COPY --from=builder --chown=2000:2000 /mattermost /mattermost

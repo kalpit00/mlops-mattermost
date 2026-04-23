@@ -74,12 +74,14 @@ COPY --from=deps /usr/bin/wvWare /usr/bin/wvWare
 COPY --from=deps /usr/bin/unrtf /usr/bin/unrtf
 COPY --from=deps /usr/bin/tidy /usr/bin/tidy
 COPY --from=deps /usr/share/wv /usr/share/wv
-COPY --from=deps /usr/lib/libpoppler.so* /usr/lib/
-COPY --from=deps /usr/lib/libfreetype.so* /usr/lib/
-COPY --from=deps /usr/lib/libpng.so* /usr/lib/
-COPY --from=deps /usr/lib/libwv.so* /usr/lib/
-COPY --from=deps /usr/lib/libtidy.so* /usr/lib/
-COPY --from=deps /usr/lib/libfontconfig.so* /usr/lib/
+# On Ubuntu 24.04+ (noble) deps, most .so live under the multiarch triplet (not /usr/lib/*.so directly).
+# Globs with no match make COPY fail — use the path that actually contains the libraries.
+COPY --from=deps /usr/lib/x86_64-linux-gnu/libpoppler.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=deps /usr/lib/x86_64-linux-gnu/libfreetype.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=deps /usr/lib/x86_64-linux-gnu/libpng*.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=deps /usr/lib/x86_64-linux-gnu/libwv.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=deps /usr/lib/x86_64-linux-gnu/libtidy.so* /usr/lib/x86_64-linux-gnu/
+COPY --from=deps /usr/lib/x86_64-linux-gnu/libfontconfig.so* /usr/lib/x86_64-linux-gnu/
 
 COPY --from=server --chown=2000:2000 /src/server/dist/linux_amd64/mattermost /mattermost
 
