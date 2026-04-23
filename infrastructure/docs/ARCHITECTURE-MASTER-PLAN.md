@@ -46,7 +46,7 @@
 - **Training** → MLflow + MinIO reads from config (`training/configs/*.yaml`).
 - **Serving** initContainer → copy model from `MODEL_S3_URI` → API pod.
 
-Secrets: one logical MinIO user mirrored per namespace via `create-secrets.sh` (see `secrets.env.example`).
+Secrets: one logical MinIO user mirrored per namespace via `create-secrets.sh` (see `infrastructure/.env.example`).
 
 ---
 

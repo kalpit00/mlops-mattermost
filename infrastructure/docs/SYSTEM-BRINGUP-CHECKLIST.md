@@ -63,12 +63,12 @@ Work each phase in order; later phases assume earlier ones are green.
 
 **Goal:** one **documented** set of values; scripts push into Kubernetes (Secrets are still **namespace-scoped** — the scripts mirror the same logical credentials).
 
-- [ ] Copy [`secrets.env.example`](../secrets.env.example) → `infrastructure/secrets.env` (see `.gitignore` — **never commit** real values).
+- [ ] Copy [`.env.example`](../.env.example) → `infrastructure/.env` (see `.gitignore` — **never commit** real values). One file contains **all** variables for both scripts.
 - [ ] Fill:
-    - [ ] **Postgres (Mattermost):** `MM_DB_*` — host should match the in-cluster Service (this repo: `mattermost-postgres.mattermost.svc.cluster.local`; see `secrets.env.example`).
+    - [ ] **Postgres (Mattermost):** `MM_DB_*` — host should match the in-cluster Service (this repo: `mattermost-postgres.mattermost.svc.cluster.local`; short name `mattermost-postgres` also works from the same namespace). See [`.env.example`](../.env.example).
     - [ ] **MinIO (one logical admin user):** `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` — used for **platform** MinIO and **replicated** to other namespaces by [`scripts/create-secrets.sh`](../scripts/create-secrets.sh).
-- [ ] `source infrastructure/secrets.env` (or export manually), then run **`./infrastructure/scripts/create-secrets.sh`**.
-- [ ] For **`mlops-data`**: set `DATA_JUPYTER_TOKEN` in `secrets.env` and run **`./infrastructure/scripts/create-mlops-data-secrets.sh`** (required before `deploy-all.sh`).
+    - [ ] **Jupyter:** `DATA_JUPYTER_TOKEN` in the same `.env` file.
+- [ ] `set -a && source infrastructure/.env && set +a`, then run **`./infrastructure/scripts/create-secrets.sh`** and **`./infrastructure/scripts/create-mlops-data-secrets.sh`** (required before `deploy-all.sh`).
 - [ ] Verify: `kubectl -n platform get secret minio-secret`, same for `mattermost`, `mlops-training`, `mlops-serving`, **`mlops-data`**.
 
 **Rule:** if you **rotate** MinIO credentials, re-run the relevant script(s) and **restart** workloads that read `minio-secret` (Mattermost sidecar, MLflow, training, serving initContainer).
@@ -177,7 +177,7 @@ Order matches [`scripts/deploy-all.sh`](../scripts/deploy-all.sh):
 
 ## Secrets file (one place to edit)
 
-- **Template:** [`secrets.env.example`](../secrets.env.example) — copy to `infrastructure/secrets.env` and `source` before running `create-secrets.sh`.
-- **Rotation:** change values in `secrets.env` → re-run the appropriate `create-*.sh` → restart affected pods.
+- **Template:** [`.env.example`](../.env.example) — copy to `infrastructure/.env` and `source` before running `create-secrets.sh` and `create-mlops-data-secrets.sh`.
+- **Rotation:** change values in `.env` (or `secrets.env`) → re-run the appropriate `create-*.sh` → restart affected pods.
 
 This checklist is the **source of truth** for manual bring-up until GitOps (Phase 11–12) fully replaces ad-hoc applies. **Phases 1–3** are “get machines, then get Kubernetes” — that is _not_ a vote for keeping applications off Kubernetes; it is the only practical bootstrap on Chameleon.

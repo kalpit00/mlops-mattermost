@@ -14,7 +14,7 @@ Living checklist for what is **implemented in repo / on Chameleon** vs **still o
 | **Platform** | `infrastructure/k8s/platform/` — MinIO + MLflow (single shared store). |
 | **Serving + training** | `infrastructure/k8s/apps/serving/`, `.../training/` — FastAPI, `Job`, `CronJob`. |
 | **mlops-data** | `infrastructure/k8s/mlops-data/` — Jupyter, ingress, pipeline CronJobs; **included in** `deploy-all.sh` after `create-mlops-data-secrets.sh`. |
-| **Secrets** | `secrets.env.example` + `create-secrets.sh` + `create-mlops-data-secrets.sh`. |
+| **Secrets** | `infrastructure/.env.example` → `.env` + `create-secrets.sh` + `create-mlops-data-secrets.sh`. |
 | **Deploy** | `deploy-all.sh` — ordered `kubectl apply` of namespaces through mlops-data. |
 | **FIP helper** | `set-floating-ip-in-manifests.sh` for `*.nip.io` + `MM_SERVICESETTINGS_SITEURL`. |
 | **Docker** | [DOCKER-BUILDS.md](DOCKER-BUILDS.md) + [build-mlops-images.sh](../scripts/build-mlops-images.sh) — all workload tags (`*:local`) match YAML. |
@@ -41,7 +41,7 @@ Living checklist for what is **implemented in repo / on Chameleon** vs **still o
 1. `terraform apply`  
 2. On VM: `bootstrap-k8s.sh`  
 3. `set-floating-ip-in-manifests.sh`  
-4. `source secrets.env` → `create-secrets.sh` **and** `create-mlops-data-secrets.sh`  
+4. `source` `infrastructure/.env` → `create-secrets.sh` **and** `create-mlops-data-secrets.sh`  
 5. `build-mlops-images.sh` + `k3s ctr images import` (see [DOCKER-BUILDS.md](DOCKER-BUILDS.md))  
 6. `deploy-all.sh`  
 

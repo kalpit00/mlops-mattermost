@@ -4,11 +4,9 @@ set -euo pipefail
 # Secrets for namespace mlops-data (Jupyter + pipeline CronJobs).
 # Object storage is the single cluster MinIO in `platform` — use the SAME credentials as
 # `kubectl -n platform create secret minio-secret ...` (see create-secrets.sh).
-# Add DATA_JUPYTER_TOKEN to infrastructure/secrets.env (from secrets.env.example). Example:
-#   export MINIO_ROOT_USER=...
-#   export MINIO_ROOT_PASSWORD=...
-#   export DATA_JUPYTER_TOKEN=...
-#   ./create-mlops-data-secrets.sh
+# Set MINIO_* and DATA_JUPYTER_TOKEN from infrastructure/.env (see infrastructure/.env.example), then:
+#   set -a && source infrastructure/.env && set +a
+#   ./infrastructure/scripts/create-mlops-data-secrets.sh
 
 required_vars=(
   MINIO_ROOT_USER

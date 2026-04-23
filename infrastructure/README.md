@@ -8,7 +8,7 @@
 - `k8s/` — YAML only; see [`k8s/README.md`](k8s/README.md).
 - `scripts/` — `build-mlops-images.sh`, `bootstrap-k8s.sh`, `create-secrets.sh`, `create-mlops-data-secrets.sh`, `deploy-all.sh`, FIP helper, e2e.
 - `docs/` — [index](docs/README.md).
-- `secrets.env.example` → `secrets.env` (gitignored).
+- **Cluster secrets (Step D):** `infrastructure/.env.example` → `infrastructure/.env` (gitignored). All `export` lines for `create-secrets.sh` and `create-mlops-data-secrets.sh` in one file. (`secrets.env` is still gitignored for legacy use.)
 
 **Namespaces (all in `deploy-all.sh` after secrets):** `mattermost`, `platform`, `mlops-serving`, `mlops-training`, `mlops-data` (Jupyter + optional pipeline CronJobs).
 
@@ -17,7 +17,7 @@
 1. In `infrastructure/terraform/`: `terraform init` → `plan` → `apply` (prereqs in [`terraform/README.md`](terraform/README.md))  
 2. On the VM: `sudo ./infrastructure/scripts/install-chameleon-dev-tools.sh` (once), re-SSH, then `./infrastructure/scripts/bootstrap-k8s.sh` (see [`scripts/README.md`](scripts/README.md))  
 3. `./infrastructure/scripts/set-floating-ip-in-manifests.sh` with the **floating IP**  
-4. `source infrastructure/secrets.env` → `create-secrets.sh` and **`create-mlops-data-secrets.sh`** (`DATA_JUPYTER_TOKEN` in `secrets.env`)  
+4. `set -a && source infrastructure/.env && set +a` → `create-secrets.sh` and **`create-mlops-data-secrets.sh`** (see **`.env.example`**)  
 5. **Build and import images** — `./infrastructure/scripts/build-mlops-images.sh` then `k3s ctr images import` (see [docs/DOCKER-BUILDS.md](docs/DOCKER-BUILDS.md)).  
 6. `./infrastructure/scripts/deploy-all.sh`  
 7. Set `MODEL_S3_URI` in serving; re-apply that manifest if needed.  

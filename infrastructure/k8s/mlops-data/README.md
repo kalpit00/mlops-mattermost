@@ -25,14 +25,14 @@ Log in to Jupyter with the token you set in `DATA_JUPYTER_TOKEN`.
 
 ## Deploy (default path)
 
-Jupyter and these manifests are applied by **`infrastructure/scripts/deploy-all.sh`** in step **6/7**, **after** `create-mlops-data-secrets.sh` (with `DATA_JUPYTER_TOKEN` in `infrastructure/secrets.env`). The `minio-secret` in `mlops-data` must match **`kubectl -n platform get secret minio-secret`** (one MinIO server).
+Jupyter and these manifests are applied by **`infrastructure/scripts/deploy-all.sh`** in step **6/7**, **after** `create-mlops-data-secrets.sh` (with `DATA_JUPYTER_TOKEN` in `infrastructure/.env`). The `minio-secret` in `mlops-data` must match **`kubectl -n platform get secret minio-secret`** (one MinIO server).
 
 **Re-apply this folder only:** `infrastructure/scripts/deploy-mlops-data.sh` (from repo root).
 
 **Manual / CI without full stack** (from repo root, with `kubectl` configured):
 
 ```bash
-source infrastructure/secrets.env
+set -a && source infrastructure/.env && set +a
 ./infrastructure/scripts/create-mlops-data-secrets.sh
 ./infrastructure/scripts/deploy-mlops-data.sh
 ```

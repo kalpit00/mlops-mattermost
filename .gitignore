@@ -180,7 +180,8 @@ infrastructure/terraform/tf.env
 infrastructure/terraform/crash.log
 infrastructure/terraform/clouds.yaml
 infrastructure/terraform/*-openrc.sh
-# Local copy of infrastructure/secrets.env.example — never commit real credentials
+# Local cluster secrets (prefer .env; secrets.env is legacy name)
+infrastructure/.env
 infrastructure/secrets.env
 
 **/CLAUDE.local.md
