@@ -1,4 +1,5 @@
-# Python image for data.pipelines CLIs (mount repo at /work). Overview: data/README.md
+# Python image for data.pipelines CLIs. Tag matches k8s/mlops-data/pipelines-cronjobs.yaml
+# See: infrastructure/docs/DOCKER-BUILDS.md
 # Build: docker build -f Dockerfile.pipelines -t mlops-pipelines:local .
 # Run:   docker run --rm -v "${PWD}:/work" -w /work mlops-pipelines:local python -m data.pipelines.cli_monitoring
 FROM python:3.11-slim

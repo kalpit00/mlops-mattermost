@@ -4,36 +4,37 @@ Kubernetes: **Jupyter** plus optional **`mlops-pipelines` CronJobs**. Object sto
 
 ## What the data member owns (reference)
 
-| Artifact | Role |
-|----------|------|
-| `docker-compose-data.yml` | Local dev: MinIO + Jupyter + `mlops-pipelines` profiles |
-| `Dockerfile.pipelines` | Image for `python -m data.pipelines.*` |
-| `.github/workflows/mlops-data-pipelines.yml` | CI schedules / manual runs |
-| `data/pipelines/` | Pipeline code uploaded to S3 bucket **`moderation-data`** on the shared MinIO |
+| Artifact                                     | Role                                                                          |
+| -------------------------------------------- | ----------------------------------------------------------------------------- |
+| `docker-compose-data.yml`                    | Local dev: MinIO + Jupyter + `mlops-pipelines` profiles                       |
+| `Dockerfile.pipelines`                       | Image for `python -m data.pipelines.*`                                        |
+| `.github/workflows/mlops-data-pipelines.yml` | CI schedules / manual runs                                                    |
+| `data/pipelines/`                            | Pipeline code uploaded to S3 bucket **`moderation-data`** on the shared MinIO |
 
 Ensure `data/pipelines/` is committed (see root `.gitignore` allowlist) so `Dockerfile.pipelines` builds in CI and locally.
 
 ## URLs (same floating IP as the rest of the stack; nip.io)
 
-| Service | URL |
-|---------|-----|
-| Data Jupyter | `http://data-jupyter.129-114-27-105.nip.io` |
-| **MinIO console (shared)** | `http://minio.129-114-27-105.nip.io` (`platform` Ingress) |
-| **MLflow (training metrics/models)** | `http://mlflow.129-114-27-105.nip.io` |
+| Service                              | URL                                                       |
+| ------------------------------------ | --------------------------------------------------------- |
+| Data Jupyter                         | `http://data-jupyter.129-114-27-105.nip.io`               |
+| **MinIO console (shared)**           | `http://minio.129-114-27-105.nip.io` (`platform` Ingress) |
+| **MLflow (training metrics/models)** | `http://mlflow.129-114-27-105.nip.io`                     |
 
 Log in to Jupyter with the token you set in `DATA_JUPYTER_TOKEN`.
 
-## One-command path on the cluster node
+## Deploy (default path)
 
-`minio-secret` in `mlops-data` must use the **same** root user/password as `kubectl -n platform get secret minio-secret` (one physical MinIO server).
+Jupyter and these manifests are applied by **`infrastructure/scripts/deploy-all.sh`** in step **6/7**, **after** `create-mlops-data-secrets.sh` (with `DATA_JUPYTER_TOKEN` in `infrastructure/secrets.env`). The `minio-secret` in `mlops-data` must match **`kubectl -n platform get secret minio-secret`** (one MinIO server).
+
+**Re-apply this folder only:** `infrastructure/scripts/deploy-mlops-data.sh` (from repo root).
+
+**Manual / CI without full stack** (from repo root, with `kubectl` configured):
 
 ```bash
-export MINIO_ROOT_USER='...'        # same as platform
-export MINIO_ROOT_PASSWORD='...'    # same as platform
-export DATA_JUPYTER_TOKEN='...'
-chmod +x create-mlops-data-secrets.sh deploy-mlops-data.sh
-./create-mlops-data-secrets.sh
-./deploy-mlops-data.sh
+source infrastructure/secrets.env
+./infrastructure/scripts/create-mlops-data-secrets.sh
+./infrastructure/scripts/deploy-mlops-data.sh
 ```
 
 ## Manual apply order

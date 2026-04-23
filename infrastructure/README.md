@@ -1,54 +1,27 @@
 # Infrastructure
 
-This directory is the source of truth for DevOps/Platform artifacts used to deploy the project on Chameleon with Terraform + OpenStack + Kubernetes.
+**Chameleon (KVM@TACC):** Terraform → **one VM** (e.g. `m1.xxlarge`) → **K3s** → `kubectl` manifests in `k8s/`. **Docker plan:** [docs/DOCKER-BUILDS.md](docs/DOCKER-BUILDS.md). Status / gaps: [docs/PROJECT-STATUS-AGAINST-COURSE-REQUIREMENTS.md](docs/PROJECT-STATUS-AGAINST-COURSE-REQUIREMENTS.md). Full bring-up: [docs/SYSTEM-BRINGUP-CHECKLIST.md](docs/SYSTEM-BRINGUP-CHECKLIST.md).
 
-## Directory layout
+## Layout
 
-- `terraform/`: Chameleon Day 0 (VM, floating IP, volume, security groups). Blazar leases are created **outside** Terraform.
-- `ansible/`: optional **Kubespray** notes for multi-node clusters (`ansible/kubespray/README.md`); K3s single-node is the default in `scripts/bootstrap-k8s.sh`.
-- `k8s/`: all in-cluster YAML — see [`k8s/README.md`](k8s/README.md).
-- `k8s/namespaces/`: namespace objects.
-- `k8s/ingress/`, `k8s/storage/`: routing and PVCs.
-- `k8s/mattermost/`, `k8s/platform/`: chat stack + **MinIO + MLflow** (shared data plane).
-- `k8s/apps/serving/`, `k8s/apps/training/`: model API + training `Job` / retrain `CronJob`.
-- `k8s/mlops-data/`: optional Jupyter + data pipelines; not in default `deploy-all.sh` (use `deploy-mlops-data.sh`).
-- `k8s/overlays/`: future Kustomize **staging / canary / prod** (placeholders; Argo CD will target these).
-- `k8s/gitops/`: Argo CD install and patterns ([`k8s/gitops/ARGO-CD-INSTALL.md`](k8s/gitops/ARGO-CD-INSTALL.md)).
-- `scripts/`: bootstrap, `create-secrets.sh`, `deploy-all.sh`, FIP manifest helper, e2e checks.
-- `docs/`: [SYSTEM-BRINGUP-CHECKLIST](docs/SYSTEM-BRINGUP-CHECKLIST.md), [ARCHITECTURE-MASTER-PLAN](docs/ARCHITECTURE-MASTER-PLAN.md), [ROLLBACK-BASELINE](docs/ROLLBACK-BASELINE.md), runbooks, sizing.
-- `secrets.env.example` → local `secrets.env` (gitignored) for a **single** place to set DB + MinIO credentials for scripts.
+- `terraform/` — VM, FIP, volume, security group. Copy **`terraform/terraform.tfvars.example` → `terraform.tfvars`**, set **`keypair_name`**, then `init` / `plan` / `apply` (see [`terraform/README.md`](terraform/README.md). **`tf.env.example`** = lease metadata + optional `TF_VAR_*` exports).
+- `k8s/` — YAML only; see [`k8s/README.md`](k8s/README.md).
+- `scripts/` — `build-mlops-images.sh`, `bootstrap-k8s.sh`, `create-secrets.sh`, `create-mlops-data-secrets.sh`, `deploy-all.sh`, FIP helper, e2e.
+- `docs/` — [index](docs/README.md).
+- `secrets.env.example` → `secrets.env` (gitignored).
 
-## Namespaces
+**Namespaces (all in `deploy-all.sh` after secrets):** `mattermost`, `platform`, `mlops-serving`, `mlops-training`, `mlops-data` (Jupyter + optional pipeline CronJobs).
 
-- `mattermost`
-- `platform`
-- `mlops-serving`
-- `mlops-training`
-- `mlops-data`
+## Condensed bring-up
 
-## Notes
+1. In `infrastructure/terraform/`: `terraform init` → `plan` → `apply` (prereqs in [`terraform/README.md`](terraform/README.md))  
+2. On the VM: `./infrastructure/scripts/bootstrap-k8s.sh`  
+3. `./infrastructure/scripts/set-floating-ip-in-manifests.sh` with the **floating IP**  
+4. `source infrastructure/secrets.env` → `create-secrets.sh` and **`create-mlops-data-secrets.sh`** (`DATA_JUPYTER_TOKEN` in `secrets.env`)  
+5. **Build and import images** — `./infrastructure/scripts/build-mlops-images.sh` then `k3s ctr images import` (see [docs/DOCKER-BUILDS.md](docs/DOCKER-BUILDS.md)).  
+6. `./infrastructure/scripts/deploy-all.sh`  
+7. Set `MODEL_S3_URI` in serving; re-apply that manifest if needed.  
 
-- No secrets are committed to Git.
-- `k8s/apps/*` use **example** image tags and `MODEL_S3_URI=REPLACE_ME` until CI/registry and a trained model path exist; replace as you harden the pipeline.
-- These manifests are what you apply to the Chameleon-backed cluster (or what Argo CD will sync to).
-
-## Bring-up sequence
-
-**Full ordered checklist (all phases, secrets in one file, FIP/ingress, validation, stub → overlay migration):** [docs/SYSTEM-BRINGUP-CHECKLIST.md](docs/SYSTEM-BRINGUP-CHECKLIST.md). The checklist explains why **Terraform (VM) then K3s bootstrap** is the normal IaaS path, and how **staging/canary/prod** usually map to **Git overlays on one cluster**, not three separate VMs.  
-**Secrets template:** copy [`secrets.env.example`](secrets.env.example) → `secrets.env` (gitignored), then run `create-secrets.sh` / `create-mlops-data-secrets.sh` as needed.
-
-Condensed:
-
-1. Provision Chameleon VM, volume, and floating IP with Terraform.
-2. Attach and mount persistent volume on the VM.
-3. Install/bootstrap Kubernetes (`scripts/bootstrap-k8s.sh`).
-4. Install ingress controller and metrics-server (part of bootstrap script).
-5. Set Floating IP in ingress/Mattermost URLs (`scripts/set-floating-ip-in-manifests.sh` or manual edit).
-6. Create namespaces and storage resources; ensure secrets exist **before** `deploy-all.sh`.
-7. Create secrets locally (`scripts/create-secrets.sh`; optional `create-mlops-data-secrets.sh`).
-8. Deploy via `scripts/deploy-all.sh` (PostgreSQL, Mattermost, MinIO, MLflow, **apps** serving + training).
-9. Verify pods, PVCs, services, and ingress resources.
-10. Open service endpoints in browser and validate functionality.
-11. Build/load images, wire `k8s/apps/*` (`MODEL_S3_URI`, real image tags), run training to populate MLflow/MinIO.
-12. Optional data stack: `scripts/deploy-mlops-data.sh` (see `k8s/mlops-data/README.md`).
-13. **GitOps:** add Kustomize **overlays** and Argo CD per [k8s/gitops/ARGO-CD-INSTALL.md](k8s/gitops/ARGO-CD-INSTALL.md) and [docs/ARCHITECTURE-MASTER-PLAN.md](docs/ARCHITECTURE-MASTER-PLAN.md).
+**Horizon / lease how-to:** [docs/chameleon-runbook.md](docs/chameleon-runbook.md).  
+**Argo / GitOps (optional):** [k8s/gitops/ARGO-CD-INSTALL.md](k8s/gitops/ARGO-CD-INSTALL.md).  
+No Prometheus/Grafana stack in the default path; `bootstrap-k8s.sh` installs **metrics-server** only.

@@ -2,26 +2,41 @@
 
 Terraform in this directory provisions:
 
--   one compute node **or** use an existing manually created instance (`existing_instance_id`)
--   one floating IP
--   one Cinder block volume
--   security group with SSH/HTTP/HTTPS ingress
+- one compute node **or** use an existing manually created instance (`existing_instance_id`)
+- one floating IP
+- one Cinder block volume
+- security group with SSH/HTTP/HTTPS ingress
 
 ## Files
 
--   `providers.tf`: Terraform/provider version and OpenStack provider config
--   `variables.tf`: input variables
--   `main.tf`: OpenStack resources
--   `outputs.tf`: instance/floating IP/volume outputs
--   `terraform.tfvars.example`: starter values to copy
+- `providers.tf`: Terraform/provider version and OpenStack provider config
+- `variables.tf`: input variables
+- `main.tf`: OpenStack resources
+- `outputs.tf`: instance/floating IP/volume outputs
+- `terraform.tfvars.example`: committed defaults for the **proj17-lease** (Blazar `reservation_id` / Nova flavor_id pre-filled)
+- `tf.env.example`: same lease metadata + optional `TF_VAR_*` exports; copy to `tf.env` (gitignored) if useful
+
+## When you can run the three Terraform commands
+
+Run **`terraform init`**, then **`terraform plan`**, then **`terraform apply`** only after:
+
+1. **OpenStack auth** targets the correct Chameleon **project** (e.g. project id in `tf.env.example` must match the project your `clouds.yaml` or `OS_PROJECT_ID` uses). Wrong project → wrong quotas or “not found” for the reservation flavor.
+2. **`terraform.tfvars`** exists in this directory (copy from `terraform.tfvars.example`) and **`keypair_name`** is an existing keypair in that project. Adjust **`image_name`** if your site uses a different Ubuntu 24.04 image name.
+3. **Blazar capacity**: the lease is **ACTIVE** for the full apply window. On Chameleon, `openstack flavor list` should show a flavor named like `reservation:9e43a450-8a12-4c9e-82ea-a65e44a06782` (your **`reservation_id`** in `tfvars`).
 
 ## Usage
 
-1. Copy `terraform.tfvars.example` to `terraform.tfvars` and update values. For a **Blazar lease**, set **`reservation_id`** to the reservation’s **`flavor_id`** (m1.large on that lease), not the lease id or project id.
-2. Configure OpenStack auth **without committing secrets**:
+1. From **`infrastructure/terraform/`**:
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   # edit terraform.tfvars: at minimum set keypair_name to your OpenStack keypair
+   ```
+   Optional: `cp tf.env.example tf.env` to keep lease ids handy (not required for Terraform to run).
+2. For a **Blazar lease**, **`reservation_id`** in `tfvars` must be the reservation’s **`flavor_id`**, not the **lease** id. The example file is already set for **proj17-lease** / m1.xxlarge.
+3. Configure OpenStack auth **without committing secrets**:
     - Preferred: install application-credential `clouds.yaml` at `~/.config/openstack/clouds.yaml`, or
     - Optional: copy `clouds.yaml` into this directory for convenience; it is listed in `.gitignore` and must not be pushed to Git.
-3. Run:
+4. Run (same directory):
     - `terraform init`
     - `terraform plan`
     - `terraform apply`
@@ -33,7 +48,7 @@ After apply, print the public IP:
 
 ## Manual VM (Blazar lease / “no valid host” with Terraform)
 
-If **`reservation_id = ""`** and Terraform cannot create **`m1.large`** (or your flavor), create the instance **in Horizon** on your lease, then:
+If **`reservation_id = ""`** and Terraform cannot create **`m1.xxlarge`** (or your flavor), create the instance **in Horizon** on your lease, then:
 
 1. Copy the instance’s **Nova server UUID** (Horizon: Instance details, or `openstack server list`).
 2. In **`terraform.tfvars`**: set **`existing_instance_id = "<that-uuid>"`**, **`reservation_id = ""`**, and keep **`flavor_name`** / **`image_name`** as documentation only (they are not used for the VM when `existing_instance_id` is set).
@@ -61,12 +76,12 @@ Skip this if `terraform plan` already shows no state errors.
 5. Note the new address: `terraform output -raw floating_ip`
 6. From the **repo root**, run:
 
-   ```bash
-   chmod +x infrastructure/scripts/set-floating-ip-in-manifests.sh
-   ./infrastructure/scripts/set-floating-ip-in-manifests.sh "$(cd infrastructure/terraform && terraform output -raw floating_ip)"
-   ```
+    ```bash
+    chmod +x infrastructure/scripts/set-floating-ip-in-manifests.sh
+    ./infrastructure/scripts/set-floating-ip-in-manifests.sh "$(cd infrastructure/terraform && terraform output -raw floating_ip)"
+    ```
 
-   Or pass the IP you see in Horizon. Optional second argument is the **previous** dotted IP if it was not `129.114.25.58`.
+    Or pass the IP you see in Horizon. Optional second argument is the **previous** dotted IP if it was not `129.114.25.58`.
 
 7. `git diff`, commit, push. On the VM: `git pull`, `./infrastructure/scripts/bootstrap-k8s.sh` (if a fresh OS), `create-secrets.sh`, `deploy-all.sh`, `deploy-mlops-data.sh`.
 

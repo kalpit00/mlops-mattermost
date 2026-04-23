@@ -1,10 +1,15 @@
-# MLOps / fork image: build webapp + server from this repository (includes custom moderation UI).
+# MLOps / fork image: build webapp + server from this repository.
 #
-# Build from repository root:
+# **Moderation UI:** Custom React lives under `webapp/channels/src/components/moderation_ui` and is
+# compiled in the `webapp` stage (`npm ci` + `npm run build`). That output is copied into the
+# server package, so the running binary serves the same bundle for `/:team/moderation` as in dev.
+# Do not use `server/build/Dockerfile` alone — it pulls upstream binaries and omits local webapp changes.
+#
+# Build from repository root (required so `COPY webapp` and `COPY server` include the fork):
 #   docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .
 #
-# The default server/build/Dockerfile downloads upstream enterprise binaries and does NOT include
-# local webapp changes (e.g. webapp/channels/src/components/moderation_ui).
+# On Chameleon (K3s), load the image on the node after `docker save` or push to a registry and set
+# `image:` in `infrastructure/k8s/mattermost/mattermost-deployment.yaml`.
 #
 # Pin linux/amd64 so the image runs on typical Chameleon/K3s x86 nodes; helper libs in the final
 # image match the Go binary architecture (important when building on Apple Silicon).

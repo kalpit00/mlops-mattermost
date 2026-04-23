@@ -1,7 +1,8 @@
-# Training workload derived from:
-# - Dockerfile.training (CMD ["python", "train.py"])
-# - training/train.py, training/configs/*.yaml (S3 URIs under s3://moderation-data/ on platform MinIO)
-# Replace `image:` with the pushed registry image once available.
+# One-shot training Job (same image as CronJob).
+# Build: docker build -f Dockerfile.training -t mlops-training:local .  (from repo root)
+# See: infrastructure/docs/DOCKER-BUILDS.md
+#
+# - Dockerfile.training, training/train.py, training/configs/*.yaml (S3 under s3://moderation-data/…)
 #
 # Requires `minio-secret` in namespace mlops-training with the same keys as platform MinIO
 # (root-user, root-password). Example: copy from -n platform, or kubectl create ... matching create-secrets.sh
@@ -17,7 +18,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: training
-          image: ghcr.io/example/training:latest
+          image: mlops-training:local
           imagePullPolicy: IfNotPresent
           command:
             - python
@@ -53,8 +54,8 @@ spec:
                   key: root-password
           resources:
             requests:
-              cpu: "250m"
+              cpu: "200m"
               memory: "512Mi"
             limits:
-              cpu: "4"
-              memory: "8Gi"
+              cpu: "2"
+              memory: "4Gi"

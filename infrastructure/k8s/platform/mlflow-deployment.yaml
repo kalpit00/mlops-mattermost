@@ -98,11 +98,11 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: "250m"
-              memory: "512Mi"
+              cpu: "200m"
+              memory: "384Mi"
             limits:
-              cpu: "2"
-              memory: "2Gi"
+              cpu: "1"
+              memory: "1536Mi"
           volumeMounts:
             - name: mlflow-data
               mountPath: /mlflow-data

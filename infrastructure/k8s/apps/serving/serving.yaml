@@ -1,7 +1,8 @@
-# Serving workload derived from:
-# - Dockerfile.serving
-# - Dockerfile.multiworker (uses UVICORN_WORKERS env var)
-# Replace `image:` with the pushed registry image once available.
+# Scoring API: single FastAPI + Uvicorn process (no separate "backend" service).
+# Build: docker build -f Dockerfile.serving -t mlops-serving:local .   (from repo root)
+# Image name must match build; see infrastructure/docs/DOCKER-BUILDS.md
+#
+# The initContainer copies MODEL_S3_URI from MinIO; pod stays not-Ready until this path exists.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -55,7 +56,7 @@ spec:
               mountPath: /models
       containers:
         - name: api
-          image: ghcr.io/example/serving:latest
+          image: mlops-serving:local
           imagePullPolicy: IfNotPresent
           env:
             - name: PYTHONUNBUFFERED
@@ -91,8 +92,8 @@ spec:
               cpu: "100m"
               memory: "256Mi"
             limits:
-              cpu: "2"
-              memory: "2Gi"
+              cpu: "1"
+              memory: "1Gi"
           volumeMounts:
             - name: model
               mountPath: /models

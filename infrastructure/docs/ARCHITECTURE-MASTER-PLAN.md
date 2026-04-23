@@ -1,144 +1,68 @@
-# Master plan: Chameleon, GitOps, and app data plane
+# Master plan: Chameleon, K3s, and app data plane
 
-This is the **target architecture** for the Mattermost MLOps project, aligned with the class **MLOps on Chameleon** lab (Terraform → configure cluster → Argo CD / workflows), with room for **Kubespray** (Ansible) when you need a **multi-node** self-managed cluster instead of a single **K3s** node.
+**Scope:** one **KVM@TACC** Chameleon VM (`m1.xxlarge` or similar), **single-node K3s** via `infrastructure/scripts/bootstrap-k8s.sh`, then workloads in `infrastructure/k8s/`. No multi-node automation in this repo.
 
 ---
 
 ## 1. Layers (order of concern)
 
-| Layer | Responsibility | Tooling in this repo |
-| --- | --- | --- |
-| **A. Capacity** | Blazar leases, flavors, time windows | Chameleon Horizon / CLI; **not** Terraform (provider gap) |
-| **B. Day 0 IaaS** | Servers, FIP, Cinder volume, security groups | `infrastructure/terraform/` |
-| **C. Day 0.5 install** | Kubernetes on those servers (single- or multi-node) | `scripts/bootstrap-k8s.sh` (K3s) **or** `infrastructure/ansible/kubespray/` (multi-node) |
-| **D. Day 1 platform** | Namespaces, ingress, storage, **MinIO + MLflow**, shared secrets contract | `infrastructure/k8s/` (YAML + future Kustomize overlays) |
-| **E. Day 1 apps** | Mattermost+Postgres, model **serving**, **training** Jobs/CronJobs | `k8s/apps/`, `k8s/mattermost/`, `k8s/platform/` |
-| **F. Day 2 GitOps** | Declarative sync, promotions staging → canary → prod | Argo CD (see `k8s/gitops/`) + CI (build/push images, optional update bot) |
-| **G. Pipelines** | Retrain, batch scoring, MLOps glue | Argo **Workflows** (optional), CronJobs, or CI **after** the cluster and registry are stable |
+| Layer                 | Responsibility                                             | Tooling in this repo                                                             |
+| --------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **A. Capacity**       | Blazar lease + `flavor_id` for the VM                      | Chameleon Horizon / CLI (not Terraform)                                          |
+| **B. Day 0 IaaS**     | VM, FIP, Cinder volume, security groups                    | `infrastructure/terraform/`                                                      |
+| **C. Day 0.5**        | Kubernetes on that VM                                      | `infrastructure/scripts/bootstrap-k8s.sh` (K3s + ingress-nginx + metrics-server) |
+| **D. Day 1 platform** | Storage, **MinIO + MLflow**, secrets                       | `infrastructure/k8s/`                                                            |
+| **E. Day 1 apps**     | Mattermost + Postgres, **serving**, **training**, **mlops-data** (Jupyter) | `k8s/mattermost/`, `k8s/platform/`, `k8s/apps/`, `k8s/mlops-data/`                |
+| **F. Later**          | GitOps (Argo), CI, separate envs                           | `k8s/gitops/` (notes only)                                                       |
 
-You implement **A → B → C** once per rebuild; **D → E** from Git; **F** makes **D–E** continuous and team-driven.
-
----
-
-## 2. What to reserve on Chameleon (you bring us)
-
-**Always**
-
-- A Blazar **lease** that covers the **instance flavor** you will use (e.g. `m1.large`) for the whole experiment window.
-- The reservation **`flavor_id`** (UUID) for each **flavor:instance** reservation (Terraform `reservation_id`, not the lease name).
-
-**Single node (current default: K3s on one VM)**
-
-- **1×** `flavor:instance` reservation for the bootstrap node (large enough for K3s + Mattermost + MinIO/MLflow + serving).
-
-**Multi-node (Kubespray, lab-style 3 workers)**
-
-- **3×** (or 2 control plane + n worker per Kubespray design) **instance** reservations on flavors that **fit your quota and RAM/CPU** plan; **or** one lease with **multiple** instance reservations of the same flavor, subject to Chameleon/Blazar UI.
-- A **private network** segment if the lab uses one (GourmetGram uses `192.168.1.0/24` + router); this repo’s Terraform today uses **sharednet1**; expanding to a private tenant network is a **Phase-2 Terraform** change if you mirror the lab.
-
-**OpenStack for automation**
-
-- **Application credentials** in `clouds.yaml` (Terraform and optionally Ansible `openstack` dynamic inventory if you add it).
-- A **keypair** registered in KVM@TACC matching your SSH key (Terraform `keypair_name`).
+**Order:** A → B → C once per rebuild; D → E from Git and `deploy-all.sh`.
 
 ---
 
-## 3. How apps are built, stored, and run
+## 2. Chameleon: what you provision
 
-| App | Build source | **Container** artifact lives in | Runs as |
-| --- | --- | --- | --- |
-| Mattermost (fork) | `server/build/Dockerfile.mlops` | **Registry** (GHCR) or `docker load` on node | `Deployment` in `k8s/mattermost/` |
-| Model **serving** API | `Dockerfile.serving` / `serving/` | **Registry** (image digest/tag) | `Deployment` in `k8s/apps/serving/` |
-| **Training** | `Dockerfile.training` / `training/` | **Registry** | `Job` + `CronJob` in `k8s/apps/training/` |
-| **MinIO** | Upstream image | *Pull* from Docker Hub (no project build) | `Deployment` in `k8s/platform/` |
-| **MLflow** | Upstream + args | *Pull* | `Deployment` in `k8s/platform/` |
-| **Postgres** (Mattermost) | `postgres:15` | *Pull* | `StatefulSet` in `k8s/mattermost/` |
-
-**MLflow** is **not** a container registry. It **tracks** runs and (with MinIO) **stores artifact files** (e.g. `joblib` under `s3://mlflow-artifacts/...`). The **serving** pod still uses a **normal container image** for Python/Uvicorn; the **initContainer** fetches the **artifact URI** (S3) into `emptyDir`.
+- **1×** Blazar **instance** reservation (e.g. **`m1.xxlarge`**); use the **reservation’s `flavor_id`** in Terraform as `reservation_id` (not the lease id).
+- **OpenStack** application credentials in `clouds.yaml`, plus an SSH keypair in the project.
+- This repo’s Terraform uses **sharednet1**; one FIP for ingress.
 
 ---
 
-## 4. Data flow (MinIO + MLflow + Mattermost)
+## 3. Services and images
 
-```mermaid
-flowchart LR
-  subgraph minio[Platform MinIO PVC]
-    B1[moderation-data bucket]
-    B2[mlflow-artifacts bucket]
-  end
-  MLflow[MLflow server]
-  Train[Training Job]
-  Serve[Serving initContainer + API]
-  MM[Mattermost + sidecar]
-  MLflow --> B2
-  Train --> MLflow
-  Train --> B1
-  MM -->|JSONL / logs| B1
-  Train -->|reads configs / data| B1
-  Serve -->|mc cp model file| B2
-  MM -->|inference HTTP| Serve
-```
+| App                       | Build                           | Runs as                                   |
+| ------------------------- | ------------------------------- | ----------------------------------------- |
+| Mattermost (fork)         | `server/build/Dockerfile.mlops` | `Deployment` in `k8s/mattermost/`         |
+| Serving                   | `Dockerfile.serving`            | `Deployment` in `k8s/apps/serving/`       |
+| Training                  | `Dockerfile.training`           | `Job` / `CronJob` in `k8s/apps/training/` |
+| MinIO / MLflow / Postgres | Upstream images                 | `k8s/platform/`, `k8s/mattermost/`        |
 
-- **MLflow** backend store: **SQLite** on a PVC in this repo; **artifact root**: `s3://mlflow-artifacts/` on MinIO.
-- **Mattermost** sidecar: mirrors moderation logs to `moderation-data` (see `k8s/mattermost/mattermost-deployment.yaml`).
-- **Training**: reads S3 paths from your configs; logs to `MLFLOW_TRACKING_URI`.
-- **Serving**: `MODEL_S3_URI` should resolve to a **concrete object** in MinIO (often an MLflow-produced path under `mlflow-artifacts/`).
-
-**Secrets:** the same **logical** MinIO user/password is replicated to each namespace that needs S3 access (`infrastructure/secrets.env` + `create-secrets.sh`).
+**MLflow** tracks runs; artifacts live in **MinIO** (`s3://mlflow-artifacts/…`). **Serving** pulls the `joblib` (or your artifact) via initContainer + `MODEL_S3_URI`.
 
 ---
 
-## 5. Three environments (staging / canary / prod)
+## 4. Data flow (summary)
 
-**Conventions (target)**
+- **Mattermost** sidecar → `moderation-data` in MinIO (logs / feedback JSONL).
+- **Training** → MLflow + MinIO reads from config (`training/configs/*.yaml`).
+- **Serving** initContainer → copy model from `MODEL_S3_URI` → API pod.
 
-| Concern | Convention |
-| --- | --- |
-| Git | `overlays/staging`, `overlays/canary`, `overlays/prod` (Kustomize) **or** three Helm value files |
-| Runtime | **Same cluster** initially: separate **namespaces** (e.g. `mattermost-staging`, `mattermost-prod`, …) **or** one namespace with labels and NetworkPolicy (pick one; namespaces are easier for RBAC) |
-| Images | **Different tags** per env (`:staging-abc`, `:canary-xyz`, `:v1.2.3`); Argo or CI applies |
-| ingress | e.g. `mm-staging.<FIP-nip>`, `mm.<FIP-nip>`, or host/path routing |
-
-**Chameleon** does not require **three VMs** for three logical envs. Add VMs when you need **isolation** or **capacity**, not to “count” three environments.
+Secrets: one logical MinIO user mirrored per namespace via `create-secrets.sh` (see `secrets.env.example`).
 
 ---
 
-## 6. GitOps and DevOps order of work (recommended)
+## 5. Environments (later)
 
-1. **Stable IaaD:** Terraform outputs + **documented** FIP; `set-floating-ip-in-manifests.sh` after every FIP change.
-2. **Stable cluster:** K3s **or** Kubespray; **one** `kubeconfig` in CI and for admins.
-3. **Stable platform:** MinIO + MLflow + secrets; prove **one** training run and **one** artifact in MinIO.
-4. **Stable apps:** serving + Mattermost + inference URL; end-to-end message → log → MinIO (existing scripts).
-5. **Argo CD:** install; `Application` per env or app-of-apps; source = this repo + overlay path.
-6. **CI:** build and push on merge; tag convention; (optional) Argo Image Updater.
-7. **Hardening:** backups, resource quotas, network policies, TLS.
-
-`k8s/gitops/` holds install notes and example **Application** manifests; keep secrets **out of Git** (use sealed-secrets, External Secrets, or `kubectl` + `create-secrets.sh` in bootstrap).
+Logical **staging / canary / prod** are often **separate namespaces** and/or **Git branches + different image tags** on the **same** cluster. Ship one working path first — see [PROJECT-STATUS-AGAINST-COURSE-REQUIREMENTS.md](PROJECT-STATUS-AGAINST-COURSE-REQUIREMENTS.md).
 
 ---
 
-## 7. Kubespray vs K3s (when to use which)
+## 6. GitOps (optional, after the system runs)
 
-| | **K3s** (`scripts/bootstrap-k8s.sh`) | **Kubespray** (`ansible/kubespray/`) |
-| --- | --- | --- |
-| **Use** | Fast bring-up, single node, class demos, minimal ops | **Multi-node** HA-ish cluster, close to the MLOps **lab** topology |
-| **Cost** | 1 instance | ≥3 instances + more lease complexity |
-| **This repo** | **Default** today | **Documented** path; add submodule and inventory, run upstream playbook from Ansible control node |
+- `k8s/gitops/ARGO-CD-INSTALL.md` — install when you have stable images and overlays.
+- **No** observability “stack” (Prometheus/Grafana, centralized logs) in the minimal bring-up; add later if required.
 
 ---
 
-## 8. Conventions: naming and file layout (post-refactor)
+## 7. Rollback
 
-- `infrastructure/k8s/` — all in-cluster YAML (replaces the old `kubernetes/` name to avoid confusion with “Kubernetes the project”).
-- `infrastructure/k8s/apps/serving/`, `.../apps/training/` — first-class app workloads (no “stub” directory name; images may still be examples until registry is final).
-- `infrastructure/ansible/` — optional automation; **Kubespray** lives under `ansible/kubespray/README.md` with upstream instructions.
-
----
-
-## 9. Rollback
-
-If a refactor or apply goes wrong, see [ROLLBACK-BASELINE.md](ROLLBACK-BASELINE.md) for a pinned commit.
-
----
-
-*Last updated: as part of the infrastructure rearchitecture pass.*
+If a refactor goes wrong, see [ROLLBACK-BASELINE.md](ROLLBACK-BASELINE.md).

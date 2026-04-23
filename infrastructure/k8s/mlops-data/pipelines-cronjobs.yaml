@@ -1,10 +1,8 @@
-# CronJobs for data.pipelines CLIs (see Dockerfile.pipelines, docker-compose-data.yml service mlops-pipelines).
+# data.pipelines CLIs in Kubernetes (image must include data/pipelines; see Dockerfile.pipelines).
+# Build: docker build -f Dockerfile.pipelines -t mlops-pipelines:local .  (from repo root; needs data/pipelines)
+# See: infrastructure/docs/DOCKER-BUILDS.md
 #
-# 1. Build and push an image from repo root:
-#      docker build -f Dockerfile.pipelines -t <registry>/mlops-pipelines:<tag> .
-# 2. Replace the image field below (or use kustomize/helm later).
-# 3. Ensure data/pipelines Python package is in the image (Dockerfile COPY) — required for `python -m data.pipelines.*`.
-# 4. Set suspend: false on each CronJob when ready to schedule.
+# start with suspend: true; set suspend: false when image + S3 env are ready
 #
 # S3 targets the shared platform MinIO (namespace platform, Service minio). Requires `minio-secret`
 # in this namespace with the same root-user/root-password as platform (see create-mlops-data-secrets.sh).
@@ -28,7 +26,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: pipelines
-              image: ghcr.io/example/mlops-pipelines:latest
+              image: mlops-pipelines:local
               imagePullPolicy: IfNotPresent
               workingDir: /work
               command: ["python"]
@@ -95,7 +93,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: pipelines
-              image: ghcr.io/example/mlops-pipelines:latest
+              image: mlops-pipelines:local
               imagePullPolicy: IfNotPresent
               workingDir: /work
               command: ["python"]

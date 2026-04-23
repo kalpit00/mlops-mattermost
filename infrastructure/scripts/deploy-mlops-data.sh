@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+#
+# Re-apply only the mlops-data manifests (Jupyter, ingress, CronJobs). Full bring-up: deploy-all.sh
+# already includes `k8s/mlops-data` after create-mlops-data-secrets.sh.
 
 kubectl() { command kubectl --request-timeout=120s "$@"; }
 

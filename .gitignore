@@ -176,6 +176,7 @@ infrastructure/terraform/.terraform/
 infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.*
 infrastructure/terraform/terraform.tfvars
+infrastructure/terraform/tf.env
 infrastructure/terraform/crash.log
 infrastructure/terraform/clouds.yaml
 infrastructure/terraform/*-openrc.sh

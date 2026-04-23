@@ -1,12 +1,13 @@
 # Scripts
 
-Helper scripts for repeatable DevOps operations.
+**Images:** [../docs/DOCKER-BUILDS.md](../docs/DOCKER-BUILDS.md) lists every Dockerfile, `*:local` tag, and `k3s ctr images import`. **Build all (on the VM, repo root):** `chmod +x infrastructure/scripts/build-mlops-images.sh && ./infrastructure/scripts/build-mlops-images.sh`
 
+- `build-mlops-images.sh`: `docker build` for `mattermost-mlops:local`, `mlops-serving:local`, `mlops-training:local`, and `mlops-pipelines:local` if `data/pipelines` exists.
 - `bootstrap-k8s.sh`: install K3s, ingress-nginx, and metrics-server.
 - `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving` — same MinIO credentials everywhere for the single cluster MinIO).
 - `create-mlops-data-secrets.sh`: secrets for `mlops-data` (Jupyter token + `minio-secret` mirroring platform MinIO credentials).
-- `deploy-all.sh`: apply manifests in bring-up order.
-- `deploy-mlops-data.sh`: apply `k8s/mlops-data` (after data secrets exist).
+- `deploy-all.sh`: apply all `k8s/` manifests in order, ending with **`mlops-data/`** (requires `create-mlops-data-secrets.sh` preflight).
+- `deploy-mlops-data.sh`: re-apply only `k8s/mlops-data` (after `create-mlops-data-secrets.sh`).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.
 - `set-floating-ip-in-manifests.sh`: replace `nip.io` / `MM_SERVICESETTINGS_SITEURL` hosts after Chameleon assigns a **new** floating IP (run from repo root; see `terraform/README.md`).
 
@@ -67,8 +68,10 @@ chmod +x infrastructure/scripts/e2e-mlmoderation-minio.sh
 ```
 
 Success looks like:
+
 - `PASS: found online score logs in MinIO.`
 
 If it times out, check:
+
 - Mattermost pod contains JSONL at `/mattermost/data/mlmoderation/logs`
 - Sidecar `mlmoderation-log-uploader` is running and can authenticate to MinIO

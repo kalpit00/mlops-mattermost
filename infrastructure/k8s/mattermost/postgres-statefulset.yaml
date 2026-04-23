@@ -32,6 +32,13 @@ spec:
                 secretKeyRef:
                   name: mattermost-db-secret
                   key: password
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
           volumeMounts:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
@@ -42,4 +49,4 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 20Gi
+            storage: 10Gi

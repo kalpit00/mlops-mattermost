@@ -7,8 +7,16 @@ This directory contains manifests for the open source service deployment:
 - Service definitions
 - Ingress definition
 - Persistent storage claim(s)
+- `mlmoderation` sidecar → mirrors JSONL/feedback to platform **MinIO** (`moderation-data` bucket)
 
-Current manifests are starter stubs and will be updated with production-ready values.
+## ML moderation logs → MinIO
+
+The server writes under the PVC:
+
+- `.../mlmoderation/logs/online_features_v1.jsonl`, `online_scores_v1.jsonl`
+- `.../mlmoderation/feedback/moderation_feedback_v1.jsonl`, `moderation_feedback_v2.jsonl` (includes `text` + `user_hash`)
+
+The Deployment’s `mlmoderation-log-uploader` sidecar runs `mc mirror` to `s3://moderation-data/mlmoderation/...` (see `minio-secret` in this namespace). Verify: post in Mattermost, then check MinIO for new objects.
 
 ## Share with teammates
 
