@@ -2,6 +2,13 @@
 
 **Images:** [../docs/DOCKER-BUILDS.md](../docs/DOCKER-BUILDS.md) lists every Dockerfile, `*:local` tag, and `k3s ctr images import`. **Build all (on the VM, repo root):** `chmod +x infrastructure/scripts/build-mlops-images.sh && ./infrastructure/scripts/build-mlops-images.sh`
 
+**Fresh VM (Chameleon), in order:**  
+1. `sudo ./infrastructure/scripts/install-chameleon-dev-tools.sh` — git, Docker, curl, perl, jq, and adds `cc` to the `docker` group (**log out and SSH back in** before `docker build` without sudo).  
+2. `./infrastructure/scripts/bootstrap-k8s.sh` — K3s (supplies `kubectl`), installs Helm if missing, ingress-nginx, metrics-server.
+
+You do **not** need `npm`, `node`, or `uv` on the VM for the default path: images are built with Docker. Install those only if you compile the webapp/server on the host.
+
+- `install-chameleon-dev-tools.sh`: OS packages for scripts + Docker (run with `sudo` once per VM).
 - `build-mlops-images.sh`: `docker build` for `mattermost-mlops:local`, `mlops-serving:local`, `mlops-training:local`, and `mlops-pipelines:local` if `data/pipelines` exists.
 - `bootstrap-k8s.sh`: install K3s, ingress-nginx, and metrics-server.
 - `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving` — same MinIO credentials everywhere for the single cluster MinIO).

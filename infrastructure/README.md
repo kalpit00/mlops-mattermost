@@ -15,7 +15,7 @@
 ## Condensed bring-up
 
 1. In `infrastructure/terraform/`: `terraform init` → `plan` → `apply` (prereqs in [`terraform/README.md`](terraform/README.md))  
-2. On the VM: `./infrastructure/scripts/bootstrap-k8s.sh`  
+2. On the VM: `sudo ./infrastructure/scripts/install-chameleon-dev-tools.sh` (once), re-SSH, then `./infrastructure/scripts/bootstrap-k8s.sh` (see [`scripts/README.md`](scripts/README.md))  
 3. `./infrastructure/scripts/set-floating-ip-in-manifests.sh` with the **floating IP**  
 4. `source infrastructure/secrets.env` → `create-secrets.sh` and **`create-mlops-data-secrets.sh`** (`DATA_JUPYTER_TOKEN` in `secrets.env`)  
 5. **Build and import images** — `./infrastructure/scripts/build-mlops-images.sh` then `k3s ctr images import` (see [docs/DOCKER-BUILDS.md](docs/DOCKER-BUILDS.md)).  

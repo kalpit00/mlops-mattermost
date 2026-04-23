@@ -49,9 +49,10 @@ Work each phase in order; later phases assume earlier ones are green.
 
 ---
 
-## Phase 3 — Kubernetes bootstrap (K3s + ingress + metrics)
+## Phase 3 — Dev tools + Kubernetes bootstrap (K3s + ingress + metrics)
 
-- [ ] On the VM, run [`scripts/bootstrap-k8s.sh`](../scripts/bootstrap-k8s.sh) (installs K3s, `ingress-nginx` via Helm, metrics-server).
+- [ ] On a **fresh** VM, run [`scripts/install-chameleon-dev-tools.sh`](../scripts/install-chameleon-dev-tools.sh) **with sudo** (Docker, git, curl, perl, jq). **Re-SSH** so the `docker` group applies.
+- [ ] Run [`scripts/bootstrap-k8s.sh`](../scripts/bootstrap-k8s.sh) as a normal user (installs K3s, Helm if needed, `ingress-nginx`, metrics-server). No `kubectl`/`helm` are required *before* this script: K3s provides `kubectl`.
 - [ ] `kubectl get nodes` — Ready.
 - [ ] `kubectl get pods -n ingress-nginx` — controller Running.
 - [ ] (Optional) Copy `kubeconfig` to teammates or use a **single** secure channel for `KUBECONFIG` + RBAC later.
