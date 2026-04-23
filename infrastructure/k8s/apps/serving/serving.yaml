@@ -39,7 +39,7 @@ spec:
             #
             # If you copy/promote models into another bucket (e.g. `moderation-data/models/...`), use that URI instead.
             - name: MODEL_S3_URI
-              value: "REPLACE_ME"
+              value: "s3://mlflow-artifacts/1/52fe525eb8354513bd73345fa26f411f/artifacts/outputs/tfidf_logreg_pipeline.joblib"
           command: ["/bin/sh", "-c"]
           args:
             - |
