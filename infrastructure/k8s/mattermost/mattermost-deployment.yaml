@@ -19,7 +19,7 @@ spec:
           # Build: `docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .` then tag/push, or pull:
           #   docker.io/kalpit00/mattermost-mlops:v1
           # Do not use `server/build/Dockerfile` alone — it downloads upstream binaries and omits local webapp changes.
-          image: kalpit00/mattermost-mlops:v2
+          image: kalpit00/mattermost-mlops:v3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8065
