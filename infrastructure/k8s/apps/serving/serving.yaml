@@ -1,5 +1,5 @@
 # Scoring API: single FastAPI + Uvicorn process (no separate "backend" service).
-# Build: `docker build -f Dockerfile.serving -t mlops-serving:local .` or pull: docker.io/kalpit00/mlops-serving:v1
+# Build: `docker build -f Dockerfile.serving -t mlops-serving:local .` or pull: docker.io/kalpit00/mlops-serving:v2
 # See infrastructure/docs/DOCKER-BUILDS.md
 #
 # The initContainer copies MODEL_S3_URI from MinIO; pod stays not-Ready until this path exists.
@@ -51,7 +51,7 @@ spec:
               mountPath: /models
       containers:
         - name: api
-          image: kalpit00/mlops-serving:v1
+          image: kalpit00/mlops-serving:v2
           imagePullPolicy: IfNotPresent
           env:
             - name: PYTHONUNBUFFERED

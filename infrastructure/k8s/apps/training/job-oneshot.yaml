@@ -1,5 +1,5 @@
 # One-shot training Job (same image as CronJob).
-# Build: `docker build -f Dockerfile.training -t mlops-training:local .` or pull: docker.io/kalpit00/mlops-training:v1
+# Build: `docker build -f Dockerfile.training -t mlops-training:local .` or pull: docker.io/kalpit00/mlops-training:v2
 # See: infrastructure/docs/DOCKER-BUILDS.md
 #
 # - Dockerfile.training, training/train.py, training/configs/*.yaml (S3 under s3://moderation-data/…)
@@ -18,7 +18,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: training
-          image: kalpit00/mlops-training:v1
+          image: kalpit00/mlops-training:v2
           imagePullPolicy: IfNotPresent
           command:
             - python

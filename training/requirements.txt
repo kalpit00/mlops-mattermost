@@ -1,7 +1,9 @@
+# Pin sklearn + joblib to exactly match serving/requirements.txt so the joblib
+# produced here loads cleanly in the serving image. Bump both files together.
+scikit-learn==1.5.2
+joblib==1.4.2
 pandas
 numpy
-scikit-learn
 mlflow
 pyyaml
-joblib
 boto3
