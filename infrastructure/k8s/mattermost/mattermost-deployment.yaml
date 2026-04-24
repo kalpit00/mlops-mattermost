@@ -19,7 +19,7 @@ spec:
           # Build: `docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .` then tag/push, or pull:
           #   docker.io/kalpit00/mattermost-mlops:v1
           # Do not use `server/build/Dockerfile` alone — it downloads upstream binaries and omits local webapp changes.
-          image: kalpit00/mattermost-mlops:v3
+          image: kalpit00/mattermost-mlops:v4
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8065
@@ -46,6 +46,13 @@ spec:
               value: "true"
             - name: MM_TEAMSETTINGS_RESTRICTCREATIONTODOMAINS
               value: ""
+            # Auto-join new signups straight into the "nyu" team so they
+            # don't land on the empty "create or join a team" screen and
+            # don't need an admin to manually add them. Requires the team
+            # to also have "Allow any user with an account on this server
+            # to join this team" enabled (Team Settings → Access).
+            - name: MM_TEAMSETTINGS_EXPERIMENTALPRIMARYTEAM
+              value: "nyu"
             - name: MM_SERVICESETTINGS_ENABLESIGNUPWITHEMAIL
               value: "true"
             - name: MM_SERVICESETTINGS_ENABLESIGNINWITHEMAIL

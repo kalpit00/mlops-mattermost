@@ -34,10 +34,26 @@ async function fetchAlerts(signal: AbortSignal): Promise<AlertsResponse> {
 }
 
 async function submitDecision(body: DecisionRequest): Promise<void> {
+    // Mattermost's APISessionRequired middleware enforces CSRF on non-GET
+    // requests and expects the MMCSRF cookie value echoed back in the
+    // X-CSRF-Token header. Without it, the server returns 401 with a
+    // "session_expired / appears to be a CSRF attempt" error and (after
+    // a few failures) invalidates the session cookie — which is why the
+    // UI previously appeared to "log the user out" after 3–4 clicks.
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    const csrf = Client4.getCSRFFromCookie();
+    if (csrf) {
+        headers['X-CSRF-Token'] = csrf;
+    }
+
     const res = await fetch(`${Client4.getBaseRoute()}/mlmoderation/decisions`, {
         method: 'POST',
         credentials: 'include',
-        headers: {'Content-Type': 'application/json', Accept: 'application/json'},
+        headers,
         body: JSON.stringify(body),
     });
     if (!res.ok) {
