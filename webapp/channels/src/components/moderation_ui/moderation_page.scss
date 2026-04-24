@@ -1,6 +1,36 @@
 .ModerationPage {
     padding: 16px 20px;
 
+    &__header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+
+    &__meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: rgba(var(--center-channel-color-rgb), 0.64);
+    }
+
+    &__error {
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(var(--dnd-indicator-rgb), 0.5);
+        border-radius: 4px;
+        background: rgba(var(--dnd-indicator-rgb), 0.08);
+        color: var(--dnd-indicator);
+    }
+
+    &__loading {
+        padding: 32px;
+        text-align: center;
+        color: rgba(var(--center-channel-color-rgb), 0.64);
+    }
+
     .layout {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -9,6 +39,14 @@
 }
 
 .ModerationList {
+    &--empty {
+        padding: 24px;
+        border: 1px dashed rgba(var(--center-channel-color-rgb), 0.24);
+        border-radius: 4px;
+        text-align: center;
+        color: rgba(var(--center-channel-color-rgb), 0.64);
+    }
+
     ul {
         list-style: none;
         padding: 0;
@@ -23,6 +61,7 @@
 
     li.selected {
         border-color: var(--button-bg);
+        box-shadow: 0 0 0 1px var(--button-bg) inset;
     }
 
     button {
@@ -32,43 +71,168 @@
         background: transparent;
         padding: 10px;
         color: var(--center-channel-color);
+        cursor: pointer;
     }
 
-    .topRow, .meta {
+    .topRow,
+    .meta {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 8px;
         font-size: 12px;
+    }
+
+    .topRow .score {
+        font-weight: 600;
     }
 
     .message {
         margin: 8px 0;
+        line-height: 1.4;
+    }
+
+    .meta {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
     }
 }
 
 .ModerationDetail {
     border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
     border-radius: 4px;
-    padding: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 
     &.empty {
         display: flex;
         align-items: center;
         justify-content: center;
+        color: rgba(var(--center-channel-color-rgb), 0.64);
     }
 
     .field {
-        margin-bottom: 8px;
+        font-size: 13px;
     }
 
-    .message {
+    .field.message {
         white-space: pre-wrap;
-        padding: 8px;
+        padding: 10px;
         background: rgba(var(--center-channel-color-rgb), 0.04);
         border-radius: 4px;
+    }
+
+    .scoreRow {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        padding: 10px;
+        border-radius: 4px;
+        background: rgba(var(--center-channel-color-rgb), 0.03);
+
+        &__label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: rgba(var(--center-channel-color-rgb), 0.6);
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }
+
+        &__value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+    }
+
+    .section {
+        h4 {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        &__hint {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: rgba(var(--center-channel-color-rgb), 0.64);
+        }
+    }
+
+    .radioRow {
+        display: flex;
+        gap: 10px;
+
+        .radio {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid rgba(var(--center-channel-color-rgb), 0.24);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .radio--selected {
+            border-color: var(--button-bg);
+            background: rgba(var(--button-bg-rgb), 0.08);
+        }
     }
 
     .actions {
         display: flex;
         gap: 8px;
     }
+
+    .hint {
+        font-size: 12px;
+        color: rgba(var(--center-channel-color-rgb), 0.6);
+    }
+
+    .reviewedSummary {
+        padding: 8px 10px;
+        border-radius: 4px;
+        background: rgba(var(--online-indicator-rgb), 0.1);
+        color: var(--online-indicator);
+        font-size: 12px;
+    }
+}
+
+// Status + decision pills shared by list + detail.
+.pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.pill--toxic {
+    background: rgba(var(--dnd-indicator-rgb), 0.14);
+    color: var(--dnd-indicator);
+}
+
+.pill--safe {
+    background: rgba(var(--online-indicator-rgb), 0.14);
+    color: var(--online-indicator);
+}
+
+.status {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status--open {
+    color: rgba(var(--center-channel-color-rgb), 0.6);
+}
+
+.status--reviewed {
+    color: var(--online-indicator);
 }

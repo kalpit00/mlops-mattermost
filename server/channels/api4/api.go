@@ -168,6 +168,8 @@ type Routes struct {
 
 	ContentFlagging *mux.Router // 'api/v4/content_flagging'
 
+	MLModeration *mux.Router // 'api/v4/mlmoderation'
+
 	Agents      *mux.Router // 'api/v4/agents'
 	LLMServices *mux.Router // 'api/v4/llmservices'
 
@@ -328,6 +330,8 @@ func Init(srv *app.Server) (*API, error) {
 
 	api.BaseRoutes.ContentFlagging = api.BaseRoutes.APIRoot.PathPrefix("/content_flagging").Subrouter()
 
+	api.BaseRoutes.MLModeration = api.BaseRoutes.APIRoot.PathPrefix("/mlmoderation").Subrouter()
+
 	api.BaseRoutes.Agents = api.BaseRoutes.APIRoot.PathPrefix("/agents").Subrouter()
 	api.BaseRoutes.LLMServices = api.BaseRoutes.APIRoot.PathPrefix("/llmservices").Subrouter()
 
@@ -392,6 +396,7 @@ func Init(srv *app.Server) (*API, error) {
 	api.InitAuditLogging()
 	api.InitAccessControlPolicy()
 	api.InitContentFlagging()
+	api.InitMLModeration()
 	api.InitAgents()
 	api.InitProperties()
 
