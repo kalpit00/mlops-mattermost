@@ -195,6 +195,77 @@ def _load_feedback_joined_df(cfg: dict) -> Optional[pd.DataFrame]:
     return joined
 
 
+def _compose_training_set(
+    seed_df: pd.DataFrame,
+    fb_df: Optional[pd.DataFrame],
+) -> Tuple[pd.DataFrame, dict]:
+    """
+    Combine seed (Jigsaw) and feedback (moderator decisions) into the final
+    training set. Returns (combined_df, stats_dict).
+
+    Strategy:
+    - Min-feedback-rows guard: if feedback has fewer than `MIN_FEEDBACK_ROWS`
+      rows (env var, default 0), ignore feedback entirely. Early in deployment
+      a handful of moderator decisions add variance without enough signal to
+      compensate; we'd rather train on the stable Jigsaw distribution alone
+      until feedback accumulates.
+    - Within feedback, dedup by text keeping the LAST occurrence (most recent
+      moderator decision wins if the same text was labeled twice — e.g. a
+      moderator flipping their mind, or two moderators landing on different
+      labels for an identical message).
+    - Across seed + feedback, dedup by text with feedback wins (a labeled
+      production message overrides any matching seed row, since feedback is
+      fresher and from the deployment distribution).
+
+    All numeric stats are logged to MLflow for traceability.
+    """
+    min_feedback_rows = int(_optional_env("MIN_FEEDBACK_ROWS", "0") or 0)
+    seed_rows = int(len(seed_df))
+    fb_rows_initial = 0 if fb_df is None else int(len(fb_df))
+
+    base_stats = {
+        "compose_min_feedback_rows": min_feedback_rows,
+        "compose_seed_rows": seed_rows,
+        "compose_feedback_rows_initial": fb_rows_initial,
+        "compose_feedback_rows_after_dedup": 0,
+        "compose_feedback_rows_used": 0,
+        "compose_feedback_overrode_seed_rows": 0,
+        "compose_train_rows": seed_rows,
+    }
+
+    if fb_df is None or fb_rows_initial == 0:
+        return seed_df.reset_index(drop=True), {
+            **base_stats,
+            "compose_feedback_skipped_reason": "no_feedback",
+        }
+
+    if fb_rows_initial < min_feedback_rows:
+        return seed_df.reset_index(drop=True), {
+            **base_stats,
+            "compose_feedback_skipped_reason": "below_min_rows",
+        }
+
+    fb_dedup = fb_df.drop_duplicates(subset=["text"], keep="last")
+    fb_rows_after_dedup = int(len(fb_dedup))
+
+    fb_texts = set(fb_dedup["text"].astype(str).tolist())
+    seed_kept = seed_df[~seed_df["text"].astype(str).isin(fb_texts)]
+    seed_overridden = seed_rows - int(len(seed_kept))
+
+    combined = pd.concat(
+        [seed_kept, fb_dedup[["text", "label"]]], ignore_index=True
+    )
+
+    return combined.reset_index(drop=True), {
+        **base_stats,
+        "compose_feedback_rows_after_dedup": fb_rows_after_dedup,
+        "compose_feedback_rows_used": fb_rows_after_dedup,
+        "compose_feedback_overrode_seed_rows": seed_overridden,
+        "compose_train_rows": int(len(combined)),
+        "compose_feedback_skipped_reason": "",
+    }
+
+
 @dataclass(frozen=True)
 class GateResult:
     passed: bool
@@ -225,7 +296,8 @@ def main() -> None:
 
     seed_df = _load_seed_df(cfg)
     fb_df = _load_feedback_joined_df(cfg)
-    train_df = seed_df if fb_df is None else pd.concat([seed_df, fb_df], ignore_index=True)
+    train_df, compose_stats = _compose_training_set(seed_df, fb_df)
+    print(f"Training set composition: {compose_stats}")
 
     X_train, X_val, y_train, y_val = train_test_split(
         train_df["text"],
@@ -276,9 +348,22 @@ def main() -> None:
                 "python_version": platform.python_version(),
                 "mlflow_tracking_uri": tracking_uri,
                 "seed_rows": int(len(seed_df)),
-                "feedback_rows": int(0 if fb_df is None else len(fb_df)),
+                "feedback_rows_initial": int(compose_stats["compose_feedback_rows_initial"]),
+                "feedback_rows_used": int(compose_stats["compose_feedback_rows_used"]),
+                "feedback_skipped_reason": str(compose_stats["compose_feedback_skipped_reason"]),
+                "min_feedback_rows": int(compose_stats["compose_min_feedback_rows"]),
             }
         )
+
+        compose_metric_keys = (
+            "compose_seed_rows",
+            "compose_feedback_rows_initial",
+            "compose_feedback_rows_after_dedup",
+            "compose_feedback_rows_used",
+            "compose_feedback_overrode_seed_rows",
+            "compose_train_rows",
+        )
+        mlflow.log_metrics({k: int(compose_stats[k]) for k in compose_metric_keys})
 
         start_time = time.time()
         pipeline.fit(X_train, y_train)

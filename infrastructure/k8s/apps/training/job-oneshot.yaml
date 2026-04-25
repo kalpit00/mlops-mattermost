@@ -1,5 +1,5 @@
 # One-shot training Job (same image as CronJob).
-# Build: `docker build -f Dockerfile.training -t mlops-training:local .` or pull: docker.io/kalpit00/mlops-training:v2
+# Build: `docker build -f Dockerfile.training -t mlops-training:local .` or pull: docker.io/kalpit00/mlops-training:v3
 # See: infrastructure/docs/DOCKER-BUILDS.md
 #
 # - Dockerfile.training, training/train.py, training/configs/*.yaml (S3 under s3://moderation-data/…)
@@ -18,7 +18,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: training
-          image: kalpit00/mlops-training:v2
+          image: kalpit00/mlops-training:v3
           imagePullPolicy: IfNotPresent
           command:
             - python
@@ -30,9 +30,18 @@ spec:
             # Platform MLflow (in-cluster)
             - name: MLFLOW_TRACKING_URI
               value: "http://mlflow.platform.svc.cluster.local:5000"
-            # Config selection (one of training/configs/*.yaml baked into the image)
+            # Config selection (one of training/configs/*.yaml baked into the image).
+            # Pinned to balanced.yaml — the winning config from the Phase A sweep
+            # (val_recall 0.88, val_pr_auc 0.873). See `infrastructure/scripts/run-config-sweep.sh`
+            # to re-run the comparison.
             - name: TRAIN_CONFIG
-              value: "/app/training/configs/small.yaml"
+              value: "/app/training/configs/balanced.yaml"
+            # Min-feedback-rows guard: if the moderator-feedback JSONL has fewer
+            # than this many rows, train on Jigsaw seed only (skip feedback).
+            # Default 0 here so this Job is liberal — useful for ad-hoc runs
+            # against small feedback samples. The CronJob sets this higher.
+            - name: MIN_FEEDBACK_ROWS
+              value: "0"
             # Optional: register under a friendly model name
             - name: MLFLOW_MODEL_NAME
               value: "tfidf_logreg"
