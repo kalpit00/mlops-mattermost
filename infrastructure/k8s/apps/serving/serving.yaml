@@ -2,7 +2,18 @@
 # Build: `docker build -f Dockerfile.serving -t mlops-serving:local .` or pull: docker.io/kalpit00/mlops-serving:v2
 # See infrastructure/docs/DOCKER-BUILDS.md
 #
-# The initContainer copies MODEL_S3_URI from MinIO; pod stays not-Ready until this path exists.
+# Model loading: the initContainer resolves `models:/$MODEL_NAME@$MODEL_ALIAS`
+# via MLflow's registry, looks up the underlying run_id, and downloads the
+# standalone joblib artifact from MinIO into /models. The pod stays not-Ready
+# until that file exists.
+#
+# Promotion runbook (replaces editing MODEL_S3_URI by hand):
+#   1. In MLflow UI, click `Aliases: Add` on the new version (e.g. v8),
+#      type `production`, save. Aliases are unique per registered model, so
+#      this auto-removes the alias from the previously-promoted version.
+#   2. `kubectl -n mlops-serving rollout restart deployment/ml-serving`
+#   3. `curl http://<serving>/score -d '{"text":"..."}'` to verify.
+# No YAML edits, no git commits — promotion is one click + one kubectl.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,39 +32,80 @@ spec:
     spec:
       initContainers:
         - name: fetch-model
-          image: minio/mc:latest
+          # MLflow image so we can use the registry client (MlflowClient +
+          # mlflow.artifacts.download_artifacts). Already pulled on nodes for
+          # the platform/mlflow Deployment, so this is effectively free.
+          image: ghcr.io/mlflow/mlflow:v3.11.1-full
           env:
-            - name: MINIO_ROOT_USER
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.platform.svc.cluster.local:5000"
+            - name: MODEL_NAME
+              value: "tfidf_logreg"
+            # The alias resolves to whichever model version a moderator marked
+            # as `production` in MLflow's UI. Promotion = changing the alias
+            # target there; no YAML edit required.
+            - name: MODEL_ALIAS
+              value: "production"
+            # Standalone joblib artifact path inside the run (logged by
+            # training/train.py via `mlflow.log_artifact(pipeline_path)`).
+            # We deliberately download this rather than the `sk_model/` dir
+            # that `register_model` was called on, because the serving app
+            # loads via `joblib.load()` from MODEL_PATH and doesn't need the
+            # MLflow `sk_model` MLmodel/conda.yaml metadata.
+            - name: MODEL_ARTIFACT_PATH
+              value: "tfidf_logreg_pipeline.joblib"
+            # MinIO credentials for resolving the run's artifact storage.
+            # MLflow's tracking server returns the artifact URI as
+            # `s3://mlflow-artifacts/...`; the client then talks to MinIO
+            # directly using these env vars.
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "http://minio.platform.svc.cluster.local:9000"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+            - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
                   name: minio-secret
                   key: root-user
-            - name: MINIO_ROOT_PASSWORD
+            - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio-secret
                   key: root-password
-            # MinIO key from console: mlflow-artifacts/<exp>/<run>/artifacts/tfidf_logreg_pipeline.joblib
-            #
-            # Pinned to the `balanced_lr_tfidf` run from the 4-config sweep
-            # (Phase A, Apr 2026). Selected for highest recall (0.88) and
-            # highest val_pr_auc (0.873), which is the right operating point
-            # for moderation: false positives are cheap (moderator dismisses
-            # in seconds), false negatives are expensive (toxic content stays
-            # live). Run_id and metrics are fixed in MLflow; to roll back to
-            # the previous run, set this back to run 52fe525e... (small_lr_tfidf).
-            - name: MODEL_S3_URI
-              value: "platform/mlflow-artifacts/1/6d4935bfbc374b6bbef4362e4e5ef0fb/artifacts/tfidf_logreg_pipeline.joblib"
           command: ["/bin/sh", "-c"]
           args:
             - |
               set -e
-              if [ -z "${MODEL_S3_URI}" ] || [ "${MODEL_S3_URI}" = "REPLACE_ME" ]; then
-                echo "MODEL_S3_URI not set; expected a trained pipeline artifact in MinIO."
-                exit 1
-              fi
-              mc alias set platform http://minio.platform.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-              mc cp "${MODEL_S3_URI}" /models/tfidf_logreg_pipeline.joblib
+              python <<'PY'
+              import os
+              from mlflow import MlflowClient
+              from mlflow.artifacts import download_artifacts
+
+              name = os.environ["MODEL_NAME"]
+              alias = os.environ["MODEL_ALIAS"]
+              artifact_path = os.environ["MODEL_ARTIFACT_PATH"]
+              dst = "/models"
+
+              client = MlflowClient()
+              mv = client.get_model_version_by_alias(name=name, alias=alias)
+              print(
+                  f"Resolved {name}@{alias} -> version {mv.version}, "
+                  f"run_id {mv.run_id}, status {mv.status}"
+              )
+
+              download_artifacts(
+                  run_id=mv.run_id,
+                  artifact_path=artifact_path,
+                  dst_path=dst,
+              )
+              print(f"Downloaded {artifact_path} from run {mv.run_id} to {dst}/")
+
+              # Persist the resolved version so the runtime can surface it in
+              # /health or /score responses if app code is later updated to
+              # read this file. For now it's diagnostic; harmless if unread.
+              with open(f"{dst}/MODEL_VERSION", "w") as f:
+                  f.write(f"{name}@{alias}=v{mv.version} (run_id={mv.run_id})\n")
+              PY
           volumeMounts:
             - name: model
               mountPath: /models
