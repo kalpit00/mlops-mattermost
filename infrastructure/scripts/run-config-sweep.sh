@@ -64,7 +64,10 @@ done
 #------------------------------------------------------------------------------
 # Run each config sequentially
 #------------------------------------------------------------------------------
-declare -a SUCCEEDED FAILED
+# Initialize as empty arrays (not just declared) so `set -u` doesn't trip
+# on `${FAILED[*]}` when no Jobs failed.
+SUCCEEDED=()
+FAILED=()
 
 for cfg in "${CONFIGS[@]}"; do
   log "Training config: $cfg"

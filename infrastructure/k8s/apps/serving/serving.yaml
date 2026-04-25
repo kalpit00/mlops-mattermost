@@ -34,8 +34,16 @@ spec:
                   name: minio-secret
                   key: root-password
             # MinIO key from console: mlflow-artifacts/<exp>/<run>/artifacts/tfidf_logreg_pipeline.joblib
+            #
+            # Pinned to the `balanced_lr_tfidf` run from the 4-config sweep
+            # (Phase A, Apr 2026). Selected for highest recall (0.88) and
+            # highest val_pr_auc (0.873), which is the right operating point
+            # for moderation: false positives are cheap (moderator dismisses
+            # in seconds), false negatives are expensive (toxic content stays
+            # live). Run_id and metrics are fixed in MLflow; to roll back to
+            # the previous run, set this back to run 52fe525e... (small_lr_tfidf).
             - name: MODEL_S3_URI
-              value: "platform/mlflow-artifacts/1/52fe525eb8354513bd73345fa26f411f/artifacts/tfidf_logreg_pipeline.joblib"
+              value: "platform/mlflow-artifacts/1/6d4935bfbc374b6bbef4362e4e5ef0fb/artifacts/tfidf_logreg_pipeline.joblib"
           command: ["/bin/sh", "-c"]
           args:
             - |
