@@ -46,7 +46,13 @@ spec:
               mc mb --ignore-existing local/moderation-data
       containers:
         - name: mlflow
-          image: ghcr.io/mlflow/mlflow:latest
+          # Pinned (was previously :latest, which silently floated and drifted
+          # the runtime ahead of the SQLite schema, causing INTERNAL_ERROR on
+          # the new Runs UI). After bumping this tag in future, run:
+          #   kubectl -n platform exec deployment/mlflow -- \
+          #     mlflow db upgrade sqlite:////mlflow-data/mlflow.db
+          # to migrate the metadata schema before restarting.
+          image: ghcr.io/mlflow/mlflow:v3.11.1-full
           ports:
             - name: http
               containerPort: 5000
@@ -69,6 +75,17 @@ spec:
             # DNS rebinding protection: allow Host from nginx Ingress (see platform-ingress.yaml).
             # Use your MLflow hostname(s); * is OK for class demos on a private FIP.
             - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "*"
+            # CORS allowlist for the new MLflow 3.x FastAPI security middleware.
+            # Default is `localhost:*`, which silently breaks the Runs UI and the
+            # Promote dialog when MLflow is reached via an Ingress hostname (the
+            # browser sends `Origin: http://mlflow.<fip>.nip.io` and MLflow's
+            # middleware returns 403 with logs like:
+            #   "Blocked cross-origin request from http://mlflow...nip.io"
+            # `*` is fine for a private demo on a Chameleon FIP. In multi-env,
+            # tighten this to a comma-separated allowlist of the actual UI hosts,
+            # e.g. "https://mlflow.dev.example.com,https://mlflow.prod.example.com".
+            - name: MLFLOW_SERVER_CORS_ALLOWED_ORIGINS
               value: "*"
           args:
             - mlflow
