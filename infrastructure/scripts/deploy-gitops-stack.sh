@@ -31,12 +31,18 @@ sync_app() {
 
 require_cmd kubectl
 require_cmd helm
+require_cmd python3
 
 if [[ -z "${ARGOCD_ADMIN_PASSWORD:-}" ]]; then
   echo "Missing required env var: ARGOCD_ADMIN_PASSWORD" >&2
   echo "Add it to infrastructure/.env; it is used to set the public ArgoCD demo login." >&2
   exit 1
 fi
+
+# Public hostname for the ArgoCD UI (see infrastructure/.env.example). Used in argocd-cm and ingress.
+ARGOCD_HOST="${ARGOCD_HOST:-argocd.129-114-27-105.nip.io}"
+# Must match the URL users type in the browser (http://... for demo; ArgoCD uses this for redirects/cookies).
+ARGOCD_PUBLIC_URL="${ARGOCD_PUBLIC_URL:-http://${ARGOCD_HOST}}"
 
 echo "[1/8] Creating Kubernetes secrets from infrastructure/.env..."
 ./infrastructure/scripts/create-secrets.sh
@@ -57,7 +63,14 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.0/manifests/install.yaml
 kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s
 
-echo "      Setting ArgoCD admin password from infrastructure/.env..."
+echo "      Configuring ArgoCD for HTTP public URL (same idea as other nip.io ingresses; default TLS+HTTPS backend breaks the SPA)..."
+# Doc: run API server without TLS; nginx serves http:// to clients and proxies HTTP to argocd-server:80
+kubectl -n argocd patch configmap argocd-cmd-params-cm --type merge -p '{"data":{"server.insecure":"true"}}'
+# External URL (must be http if users hit http://)
+argo_cm_patch="$(ARGOCD_PUBLIC_URL="${ARGOCD_PUBLIC_URL}" python3 -c "import os,json; print(json.dumps({'data': {'url': os.environ['ARGOCD_PUBLIC_URL']}}))")"
+kubectl -n argocd patch configmap argocd-cm --type merge -p "${argo_cm_patch}"
+
+echo "      Setting ArgoCD admin password from infrastructure/.env (stored as bcrypt in argocd-secret)..."
 argocd_bcrypt="$(kubectl -n argocd exec deploy/argocd-server -- argocd account bcrypt --password "${ARGOCD_ADMIN_PASSWORD}" | tail -n 1 | tr -d '\r')"
 argocd_mtime="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 kubectl -n argocd patch secret argocd-secret --type merge -p "$(cat <<EOF
@@ -89,9 +102,10 @@ echo "[8/8] Current status and public demo URLs..."
 kubectl get application -n argocd
 kubectl get ingress -A
 
-cat <<'EOF'
+cat <<EOF
 
 Public demo URLs:
+  ARGOCD_PUBLIC_URL: ${ARGOCD_PUBLIC_URL}
   Mattermost:    http://129-114-27-105.nip.io
   MLflow:        http://mlflow.129-114-27-105.nip.io
   MinIO:         http://minio.129-114-27-105.nip.io
@@ -101,7 +115,9 @@ Public demo URLs:
   Alertmanager:  http://alertmanager.129-114-27-105.nip.io
   Loki ready:    http://loki.129-114-27-105.nip.io/ready
   Pushgateway:   http://pushgateway.129-114-27-105.nip.io
-  ArgoCD:        http://argocd.129-114-27-105.nip.io
 
-ArgoCD username is admin. The password is ARGOCD_ADMIN_PASSWORD from infrastructure/.env.
+Grafana: admin password in \`grafana-admin-secret\` only applies on first DB init. Chart uses
+  \`persistence: false\` for demo. If you deployed Grafana earlier with a PVC, delete that PVC
+  once so the DB re-inits, or the old password in sqlite still wins.
+
 EOF

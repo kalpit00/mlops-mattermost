@@ -4,11 +4,14 @@ metadata:
   name: argocd-server
   namespace: argocd
   annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    # ArgoCD must run in insecure mode (argocd-cmd-params-cm) so the UI works over http://
+    # from the browser. Backend is plain HTTP to argocd-server:80, same pattern as other apps.
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
 spec:
   ingressClassName: nginx
   rules:
@@ -21,4 +24,4 @@ spec:
               service:
                 name: argocd-server
                 port:
-                  number: 443
+                  number: 80

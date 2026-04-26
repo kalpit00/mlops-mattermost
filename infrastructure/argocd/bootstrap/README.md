@@ -44,7 +44,7 @@ kubectl apply -f infrastructure/argocd/bootstrap/argocd-ingress.yaml
 kubectl -n argocd get ingress argocd-server
 ```
 
-Open `https://argocd.129-114-27-105.nip.io` or `http://argocd.129-114-27-105.nip.io`, user `admin`. If the browser warns about TLS, continue; the demo ingress forwards to ArgoCD's self-signed HTTPS service.
+Open `http://argocd.129-114-27-105.nip.io` (or set `ARGOCD_HOST` / `ARGOCD_PUBLIC_URL` in `infrastructure/.env` when using `deploy-gitops-stack.sh`). The script enables ArgoCD `server.insecure` and sets `argocd-cm` `url` to match the public **http** URL so the UI and cookies work behind nginx, same as Mattermost/MinIO ingress.
 
 ## Applications
 

@@ -43,7 +43,9 @@ kubectl -n observability port-forward svc/mlops-observability-loki 13100:3100
 kubectl -n observability port-forward svc/prometheus-pushgateway 19091:9091
 ```
 
-Grafana demo credentials come from `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` in `infrastructure/.env`.
+Grafana demo credentials come from `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` in `infrastructure/.env`, which populate `grafana-admin-secret` like MinIO credentials.
+
+Unlike MinIO, Grafana’s upstream chart only uses `GF_SECURITY_ADMIN_USER/PASSWORD` on the **first** sqlite DB init; after that, the admin password is stored in Grafana’s database. This chart sets `grafana.persistence.enabled: false` for demo so the pod uses ephemeral storage and matches the Secret on a fresh install. If you had an older release with a Grafana PVC, delete that PVC once, then resync, so a new DB picks up the Secret.
 
 ## Public Demo URLs
 

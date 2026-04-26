@@ -10,6 +10,10 @@ kube-prometheus-stack:
       existingSecret: grafana-admin-secret
       userKey: admin-user
       passwordKey: admin-password
+    # MinIO reads credentials live; Grafana only uses GF_SECURITY_ADMIN_* on *first* DB init.
+    # Without persistence, the sqlite DB resets on pod recreation and tracks `grafana-admin-secret`.
+    persistence:
+      enabled: false
     service:
       type: ClusterIP
     sidecar:
