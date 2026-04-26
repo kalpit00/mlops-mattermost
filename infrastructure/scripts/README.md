@@ -13,6 +13,7 @@ You do **not** need `npm`, `node`, or `uv` on the VM for the default path: image
 - `bootstrap-k8s.sh`: install K3s, ingress-nginx, and metrics-server.
 - `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving`, `mlops-staging`, `mlops-canary` — same MinIO credentials everywhere for the single cluster MinIO).
 - `create-mlops-data-secrets.sh`: secrets for `mlops-data` (Jupyter token + `minio-secret` mirroring platform MinIO credentials).
+- `deploy-gitops-stack.sh`: preferred final bring-up path after images are built/pushed. It creates secrets from `infrastructure/.env`, installs Prometheus CRDs server-side, installs/applies ArgoCD, syncs GitOps apps, applies public demo ingresses, and prints service URLs.
 - `deploy-all.sh`: legacy/manual fallback that applies all `k8s/` manifests in order, ending with **`mlops-data/`** (requires `create-mlops-data-secrets.sh` preflight). Sprint 1's preferred path is ArgoCD + Helm; see [GITOPS-SPRINT1-RUNBOOK.md](../docs/GITOPS-SPRINT1-RUNBOOK.md).
 - `deploy-mlops-data.sh`: re-apply only `k8s/mlops-data` (after `create-mlops-data-secrets.sh`).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.

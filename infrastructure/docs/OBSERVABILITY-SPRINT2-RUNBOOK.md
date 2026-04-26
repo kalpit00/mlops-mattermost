@@ -2,6 +2,14 @@
 
 This is the VM-side path for deploying the final observability layer after pushing the Sprint 2 commit.
 
+For final submission/demo bring-up, prefer the combined GitOps script:
+
+```bash
+bash infrastructure/scripts/deploy-gitops-stack.sh
+```
+
+The detailed sections below are useful for troubleshooting or applying the observability layer independently.
+
 ## What Sprint 2 Adds
 
 - Prometheus, Grafana, Alertmanager, kube-state-metrics, node exporter.
@@ -69,7 +77,7 @@ kubectl apply --server-side --force-conflicts \
 ```bash
 set -a && source infrastructure/.env && set +a
 ./infrastructure/scripts/create-secrets.sh
-kubectl apply -f infrastructure/argocd/applications/observability.yaml
+kubectl apply -f infrastructure/argocd/applications/mlops-applications.yaml
 kubectl get application -n argocd
 ```
 

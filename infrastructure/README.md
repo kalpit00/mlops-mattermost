@@ -20,13 +20,12 @@
 1. In `infrastructure/terraform/`: `terraform init` → `plan` → `apply` (prereqs in [`terraform/README.md`](terraform/README.md))  
 2. On the VM: `sudo ./infrastructure/scripts/install-chameleon-dev-tools.sh` (once), re-SSH, then `./infrastructure/scripts/bootstrap-k8s.sh` (see [`scripts/README.md`](scripts/README.md))  
 3. `./infrastructure/scripts/set-floating-ip-in-manifests.sh` with the **floating IP**  
-4. `set -a && source infrastructure/.env && set +a` → `create-secrets.sh` and **`create-mlops-data-secrets.sh`** (see **`.env.example`**)  
+4. Copy/fill `infrastructure/.env` from `.env.example`; keep it gitignored and copy it to the VM when needed.
 5. **Build and import images** — `./infrastructure/scripts/build-mlops-images.sh` then `k3s ctr images import` (see [docs/DOCKER-BUILDS.md](docs/DOCKER-BUILDS.md)).  
-6. Manual fallback: `./infrastructure/scripts/deploy-all.sh`
-7. GitOps path: install ArgoCD, then apply [`argocd/projects/mlops.yaml`](argocd/projects/mlops.yaml) and [`argocd/applications/mlops-applications.yaml`](argocd/applications/mlops-applications.yaml).
-8. Model serving now resolves MLflow aliases per environment (`staging`, `canary`, `production`) instead of hard-coding a model URI.
+6. Preferred GitOps path: `bash ./infrastructure/scripts/deploy-gitops-stack.sh`.
+7. Manual fallback: `./infrastructure/scripts/deploy-all.sh`
+8. Model serving resolves MLflow aliases per environment (`staging`, `canary`, `production`) instead of hard-coding a model URI.
 
 **Horizon / lease how-to:** [docs/chameleon-runbook.md](docs/chameleon-runbook.md).  
 **Argo / GitOps:** [argocd/bootstrap/README.md](argocd/bootstrap/README.md).
-No Prometheus/Grafana stack in the default path; `bootstrap-k8s.sh` installs **metrics-server** only.
-Sprint 2 adds Prometheus/Grafana/Loki via [docs/OBSERVABILITY-SPRINT2-RUNBOOK.md](docs/OBSERVABILITY-SPRINT2-RUNBOOK.md).
+Sprint 2 observability (Prometheus, Grafana, Loki, Alertmanager, Pushgateway) is part of the preferred GitOps path via [scripts/deploy-gitops-stack.sh](scripts/deploy-gitops-stack.sh).

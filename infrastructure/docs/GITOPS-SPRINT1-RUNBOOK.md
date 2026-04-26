@@ -97,6 +97,14 @@ Before syncing serving environments, make sure the current known-good model vers
 
 For the first Sprint 1 rollout, all three can point at the same known-good model version. Later, staging/canary can point at candidate versions.
 
+For the final combined Sprint 1 + Sprint 2 path, use:
+
+```bash
+bash infrastructure/scripts/deploy-gitops-stack.sh
+```
+
+If applying by hand:
+
 ```bash
 kubectl apply -f infrastructure/argocd/projects/mlops.yaml
 kubectl apply -f infrastructure/argocd/applications/mlops-applications.yaml

@@ -14,6 +14,14 @@ kubectl -n argocd wait --for=condition=available deployment/argocd-server --time
 
 If the repo is public, the `Application` resources can read it directly. If it is private, add repo credentials in the ArgoCD UI or CLI before applying the applications.
 
+For the final demo path, prefer the end-to-end script from the repo root:
+
+```bash
+bash infrastructure/scripts/deploy-gitops-stack.sh
+```
+
+If applying by hand:
+
 ```bash
 kubectl apply -f infrastructure/argocd/projects/mlops.yaml
 kubectl apply -f infrastructure/argocd/applications/mlops-applications.yaml
@@ -46,5 +54,6 @@ Open `https://argocd.129-114-27-105.nip.io` or `http://argocd.129-114-27-105.nip
 - `mlops-staging` manages `mlops-staging` serving with `MODEL_ALIAS=staging` and auto-syncs.
 - `mlops-canary` manages `mlops-canary` serving with `MODEL_ALIAS=canary` and is manually synced.
 - `mlops-production` manages the existing production namespaces (`mattermost`, `mlops-serving`, `mlops-training`, `mlops-data`) and is manually synced.
+- `mlops-observability` manages `observability` (Prometheus, Grafana, Loki, Alertmanager, Pushgateway, ServiceMonitors, dashboard, alert rules, public demo ingresses) and auto-syncs.
 
 Secrets remain a human bootstrap step via `infrastructure/scripts/create-secrets.sh` and `infrastructure/scripts/create-mlops-data-secrets.sh`.
