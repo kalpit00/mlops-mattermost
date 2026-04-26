@@ -22,7 +22,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(ml_serving_predictions_total[1m])) by (namespace, model_version, label)",
-              "legendFormat": "{{namespace}} {{model_version}} {{label}}",
+              "legendFormat": "__name__",
               "refId": "A"
             }
           ]
@@ -34,7 +34,7 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum(rate(ml_serving_score_duration_seconds_bucket[5m])) by (le, namespace))",
-              "legendFormat": "{{namespace}} p95",
+              "legendFormat": "p95 latency",
               "refId": "A"
             }
           ]
@@ -75,7 +75,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(mlmoderation_feedback_decisions_total[5m])) by (label, action, source)",
-              "legendFormat": "{{source}} {{label}}/{{action}}",
+              "legendFormat": "moderator decisions",
               "refId": "A"
             }
           ]
@@ -87,7 +87,7 @@ data:
           "targets": [
             {
               "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"mattermost|mlops-serving|mlops-staging|mlops-canary|mlops-data|platform\"}[15m])) by (namespace, pod)",
-              "legendFormat": "{{namespace}}/{{pod}}",
+              "legendFormat": "pod restarts",
               "refId": "A"
             }
           ]
