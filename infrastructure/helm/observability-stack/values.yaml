@@ -1,5 +1,7 @@
 kube-prometheus-stack:
   fullnameOverride: kube-prometheus-stack
+  crds:
+    enabled: false
   defaultRules:
     create: true
   grafana:
@@ -20,7 +22,7 @@ kube-prometheus-stack:
       - name: Loki
         type: loki
         access: proxy
-        url: http://observability-loki:3100
+        url: http://mlops-observability-loki:3100
         isDefault: false
   prometheus:
     prometheusSpec:
@@ -86,7 +88,7 @@ loki-stack:
     enabled: true
     config:
       clients:
-        - url: http://observability-loki:3100/loki/api/v1/push
+        - url: http://mlops-observability-loki:3100/loki/api/v1/push
     resources:
       requests:
         cpu: 50m

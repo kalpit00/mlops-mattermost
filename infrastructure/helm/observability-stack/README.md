@@ -17,6 +17,15 @@ helm template mlops-observability infrastructure/helm/observability-stack \
   --namespace observability >/tmp/mlops-observability.yaml
 ```
 
+Prometheus Operator CRDs are intentionally not rendered by this chart because several are too large for ArgoCD client-side apply annotations. Install or upgrade them once with server-side apply before syncing the ArgoCD app:
+
+```bash
+mkdir -p /tmp/kps && cd /tmp/kps
+tar xzf ~/mlops-mattermost/infrastructure/helm/observability-stack/charts/kube-prometheus-stack-*.tgz
+kubectl apply --server-side --force-conflicts \
+  -f /tmp/kps/kube-prometheus-stack/charts/crds/crds/
+```
+
 ## Port Forwards
 
 Inspect service names after sync:
@@ -30,7 +39,7 @@ Typical access:
 ```bash
 kubectl -n observability port-forward svc/kube-prometheus-stack-grafana 13000:80
 kubectl -n observability port-forward svc/kube-prometheus-stack-prometheus 19090:9090
-kubectl -n observability port-forward svc/observability-loki 13100:3100
+kubectl -n observability port-forward svc/mlops-observability-loki 13100:3100
 kubectl -n observability port-forward svc/prometheus-pushgateway 19091:9091
 ```
 

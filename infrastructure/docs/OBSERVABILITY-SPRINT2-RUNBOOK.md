@@ -55,6 +55,15 @@ helm template mlops-production infrastructure/helm/mlops-stack \
   -f infrastructure/helm/mlops-stack/values/production.yaml >/tmp/mlops-production.yaml
 ```
 
+Install or upgrade the Prometheus Operator CRDs once with server-side apply. The observability chart does not let ArgoCD own these CRDs because several exceed the client-side annotation size limit.
+
+```bash
+mkdir -p /tmp/kps && cd /tmp/kps
+tar xzf ~/mlops-mattermost/infrastructure/helm/observability-stack/charts/kube-prometheus-stack-*.tgz
+kubectl apply --server-side --force-conflicts \
+  -f /tmp/kps/kube-prometheus-stack/charts/crds/crds/
+```
+
 ## 3. Apply ArgoCD Application
 
 ```bash
@@ -130,7 +139,7 @@ kubectl -n mlops-data get jobs
 kubectl -n observability get svc
 kubectl -n observability port-forward svc/kube-prometheus-stack-grafana 13000:80
 kubectl -n observability port-forward svc/kube-prometheus-stack-prometheus 19090:9090
-kubectl -n observability port-forward svc/observability-loki 13100:3100
+kubectl -n observability port-forward svc/mlops-observability-loki 13100:3100
 kubectl -n observability port-forward svc/prometheus-pushgateway 19091:9091
 ```
 
