@@ -67,6 +67,8 @@ kubectl apply --server-side --force-conflicts \
 ## 3. Apply ArgoCD Application
 
 ```bash
+set -a && source infrastructure/.env && set +a
+./infrastructure/scripts/create-secrets.sh
 kubectl apply -f infrastructure/argocd/applications/observability.yaml
 kubectl get application -n argocd
 ```
@@ -143,7 +145,19 @@ kubectl -n observability port-forward svc/mlops-observability-loki 13100:3100
 kubectl -n observability port-forward svc/prometheus-pushgateway 19091:9091
 ```
 
-Grafana: `http://localhost:13000`, credentials `admin` / `admin`.
+Grafana: `http://localhost:13000`, using `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` from `infrastructure/.env`.
+
+Public demo URLs through `ingress-nginx`:
+
+```text
+http://grafana.129-114-27-105.nip.io
+http://prometheus.129-114-27-105.nip.io
+http://alertmanager.129-114-27-105.nip.io
+http://loki.129-114-27-105.nip.io/ready
+http://pushgateway.129-114-27-105.nip.io
+```
+
+Use the `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` values from `infrastructure/.env`.
 
 Prometheus checks:
 

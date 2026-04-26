@@ -6,7 +6,10 @@ kube-prometheus-stack:
     create: true
   grafana:
     enabled: true
-    adminPassword: "admin"
+    admin:
+      existingSecret: grafana-admin-secret
+      userKey: admin-user
+      passwordKey: admin-password
     service:
       type: ClusterIP
     sidecar:
@@ -100,3 +103,23 @@ loki-stack:
     enabled: false
   prometheus:
     enabled: false
+
+ingress:
+  enabled: true
+  className: nginx
+  baseDomain: 129-114-27-105.nip.io
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 256m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+  hosts:
+    grafana: grafana.129-114-27-105.nip.io
+    prometheus: prometheus.129-114-27-105.nip.io
+    alertmanager: alertmanager.129-114-27-105.nip.io
+    loki: loki.129-114-27-105.nip.io
+    pushgateway: pushgateway.129-114-27-105.nip.io

@@ -31,6 +31,15 @@ kubectl -n argocd port-forward svc/argocd-server 18080:443
 
 Open `https://localhost:18080`, user `admin`.
 
+For a live demo, expose ArgoCD through the cluster ingress controller:
+
+```bash
+kubectl apply -f infrastructure/argocd/bootstrap/argocd-ingress.yaml
+kubectl -n argocd get ingress argocd-server
+```
+
+Open `https://argocd.129-114-27-105.nip.io` or `http://argocd.129-114-27-105.nip.io`, user `admin`. If the browser warns about TLS, continue; the demo ingress forwards to ArgoCD's self-signed HTTPS service.
+
 ## Applications
 
 - `mlops-platform` manages `platform` (`MinIO`, `MLflow`, PVCs, platform ingress) and auto-syncs.

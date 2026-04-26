@@ -10,6 +10,8 @@ required_vars=(
   MM_DB_NAME
   MINIO_ROOT_USER
   MINIO_ROOT_PASSWORD
+  GRAFANA_ADMIN_USER
+  GRAFANA_ADMIN_PASSWORD
 )
 
 for v in "${required_vars[@]}"; do
@@ -27,6 +29,7 @@ kubectl create namespace mlops-training --dry-run=client -o yaml | kubectl apply
 kubectl create namespace mlops-serving --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace mlops-staging --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace mlops-canary --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n mattermost create secret generic mattermost-db-secret \
   --from-literal=username="${MM_DB_USERNAME}" \
@@ -66,6 +69,11 @@ kubectl -n mlops-staging create secret generic minio-secret \
 kubectl -n mlops-canary create secret generic minio-secret \
   --from-literal=root-user="${MINIO_ROOT_USER}" \
   --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n observability create secret generic grafana-admin-secret \
+  --from-literal=admin-user="${GRAFANA_ADMIN_USER}" \
+  --from-literal=admin-password="${GRAFANA_ADMIN_PASSWORD}" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Secrets created/updated successfully."

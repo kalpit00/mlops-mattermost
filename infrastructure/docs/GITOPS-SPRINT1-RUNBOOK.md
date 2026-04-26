@@ -115,6 +115,15 @@ kubectl -n argocd port-forward svc/argocd-server 18080:443
 
 Open `https://localhost:18080`.
 
+For a public demo URL:
+
+```bash
+kubectl apply -f infrastructure/argocd/bootstrap/argocd-ingress.yaml
+kubectl -n argocd get ingress argocd-server
+```
+
+Open `https://argocd.129-114-27-105.nip.io` or `http://argocd.129-114-27-105.nip.io`.
+
 ## 8. Check Namespaces
 
 ```bash

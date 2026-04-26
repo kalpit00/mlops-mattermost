@@ -42,7 +42,12 @@ FILES=(
   infrastructure/helm/mlops-stack/values.yaml
   infrastructure/helm/mlops-stack/values/platform.yaml
   infrastructure/helm/mlops-stack/values/production.yaml
+  infrastructure/helm/observability-stack/values.yaml
+  infrastructure/argocd/bootstrap/argocd-ingress.yaml
+  infrastructure/argocd/bootstrap/README.md
+  infrastructure/.env.example
   infrastructure/docs/GITOPS-SPRINT1-RUNBOOK.md
+  infrastructure/docs/OBSERVABILITY-SPRINT2-RUNBOOK.md
   infrastructure/scripts/e2e-mlmoderation-minio.sh
   infrastructure/scripts/README.md
 )
