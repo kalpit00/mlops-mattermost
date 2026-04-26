@@ -6,6 +6,10 @@ kube-prometheus-stack:
     create: true
   grafana:
     enabled: true
+    # kube-prometheus-stack sets a default grafana.adminPassword; the Grafana subchart
+    # uses that instead of admin.existingSecret when non-empty, which inlines a literal
+    # password in the Deployment (see GF_SECURITY_*). Clear it so only grafana-admin-secret is used.
+    adminPassword: ""
     admin:
       existingSecret: grafana-admin-secret
       userKey: admin-user

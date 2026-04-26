@@ -47,6 +47,8 @@ Grafana demo credentials come from `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWOR
 
 Unlike MinIO, Grafana’s upstream chart only uses `GF_SECURITY_ADMIN_USER/PASSWORD` on the **first** sqlite DB init; after that, the admin password is stored in Grafana’s database. This chart sets `grafana.persistence.enabled: false` for demo so the pod uses ephemeral storage and matches the Secret on a fresh install. If you had an older release with a Grafana PVC, delete that PVC once, then resync, so a new DB picks up the Secret.
 
+`kube-prometheus-stack` also sets a default `grafana.adminPassword`; if left set, the Grafana subchart **ignores** `admin.existingSecret` and bakes a literal password into the Deployment (so the pod’s `GF_SECURITY_ADMIN_PASSWORD` will not match `grafana-admin-secret`). This stack sets `grafana.adminPassword: ""` so the Secret is the single source of truth, same pattern as not hardcoding MinIO in Git.
+
 ## Public Demo URLs
 
 The chart also creates HTTP ingresses for one-click demo access through `ingress-nginx`:
