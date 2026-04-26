@@ -4,7 +4,6 @@ logs
 node_modules
 /proposal
 /labs
-/data
 /dist
 /webapp/dist
 jobserver
@@ -127,14 +126,15 @@ web/sass-files/sass/.sass-cache/
 *.sass-cache
 *styles.css
 
-# Default local file storage
-data/*
-!data/__init__.py
-!data/README.md
-!data/TESTING.md
-!data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md
-!data/pipelines/
-!data/pipelines/**
+# Mattermost default local file store + MLOps runtime outputs (parquet, JSONL, etc.).
+# Pipeline *source* lives in mlops_data/ (tracked), not here.
+/data/
+
+# Python bytecode caches (mlops_data/, training/, etc.)
+__pycache__/
+*.py[cod]
+*.egg-info/
+
 # Local Compose / dev volumes (see docker-compose-data.env.example)
 .local/
 webapp/data/*

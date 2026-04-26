@@ -3,7 +3,7 @@
 # 1. cp docker-compose-data.env.example .env
 # 2. Edit .env (gitignored — do not commit secrets)
 # 3. docker compose -f docker-compose-data.yml up -d minio jupyter
-# 4. docker compose -f docker-compose-data.yml --profile mlops run --rm mlops-pipelines python -m data.pipelines.cli_monitoring
+# 4. docker compose -f docker-compose-data.yml --profile mlops run --rm mlops-pipelines python -m mlops_data.pipelines.cli_monitoring
 
 version: "3.8"
 
@@ -64,5 +64,5 @@ services:
   mlops-synthetic:
     <<: *mlops_pipelines_base
     profiles: ["synthetic-dev"]
-    command: ["python", "-m", "data.pipelines.cli_synthetic"]
+    command: ["python", "-m", "mlops_data.pipelines.cli_synthetic"]
     restart: "no"

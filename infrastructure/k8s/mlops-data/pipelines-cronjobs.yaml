@@ -1,5 +1,5 @@
-# data.pipelines CLIs in Kubernetes (image must include data/pipelines; see Dockerfile.pipelines).
-# Build: docker build -f Dockerfile.pipelines -t mlops-pipelines:local .  (from repo root; needs data/pipelines)
+# mlops_data.pipelines CLIs in Kubernetes (image must include mlops_data/pipelines; see Dockerfile.pipelines).
+# Build: docker build -f Dockerfile.pipelines -t mlops-pipelines:local .  (from repo root; needs mlops_data/pipelines)
 # See: infrastructure/docs/DOCKER-BUILDS.md
 #
 # start with suspend: true; set suspend: false when image + S3 env are ready
@@ -32,7 +32,7 @@ spec:
               command: ["python"]
               args:
                 - -m
-                - data.pipelines.cli_monitoring
+                - mlops_data.pipelines.cli_monitoring
               env:
                 - name: PYTHONUNBUFFERED
                   value: "1"
@@ -99,7 +99,7 @@ spec:
               command: ["python"]
               args:
                 - -m
-                - data.pipelines.cli_dataset_build
+                - mlops_data.pipelines.cli_dataset_build
                 - --strict
               env:
                 - name: PYTHONUNBUFFERED

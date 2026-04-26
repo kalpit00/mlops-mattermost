@@ -10,6 +10,6 @@ Runtime hooks for the moderation ML track. Enabled via `MM_MLMODERATION_*` envir
 
 **Note:** `logs/online_scores_v1.jsonl` is currently written by a **heuristic scorer** (`scoring.go`). It’s intended to be replaced by a real ML model call (input: `FeatureRowV1`, output: `ScoreRowV1`).
 
-These JSONL paths feed **`data.pipelines.cli_dataset_build`** (feedback glob) and **`data.pipelines.cli_monitoring`** (live window). No secrets should be written into these files; use existing Mattermost config for credentials.
+These JSONL paths feed **`mlops_data.pipelines.cli_dataset_build`** (feedback glob) and **`mlops_data.pipelines.cli_monitoring`** (live window). No secrets should be written into these files; use existing Mattermost config for credentials.
 
-**Related:** [`data/README.md`](../../../../data/README.md), [`data/pipelines/README.md`](../../../../data/pipelines/README.md).
+**Related:** [`mlops_data/pipelines/README.md`](../../../../mlops_data/pipelines/README.md), [`mlops_data/TESTING.md`](../../../../mlops_data/TESTING.md).

@@ -17,7 +17,7 @@ Build **from the repository root** on the VM (or build elsewhere and `docker sav
 | `mattermost-mlops:local` | `server/build/Dockerfile.mlops` | `docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .` |
 | `mlops-serving:local`   | `Dockerfile.serving`            | `docker build -f Dockerfile.serving -t mlops-serving:local .` |
 | `mlops-training:local`  | `Dockerfile.training`            | `docker build -f Dockerfile.training -t mlops-training:local .` |
-| `mlops-pipelines:local` | `Dockerfile.pipelines` (needs `data/pipelines/`) | `docker build -f Dockerfile.pipelines -t mlops-pipelines:local .` |
+| `mlops-pipelines:local` | `Dockerfile.pipelines` (needs `mlops_data/pipelines/`) | `docker build -f Dockerfile.pipelines -t mlops-pipelines:local .` |
 
 | Pull-only (no project build) | Upstream | Used in |
 |------------------------------|----------|---------|
@@ -27,7 +27,7 @@ Build **from the repository root** on the VM (or build elsewhere and `docker sav
 | `minio/mc:latest` | Docker Hub | initContainers / sidecar |
 | `jupyter/base-notebook:latest` | Docker Hub | `k8s/mlops-data/jupyter-deployment.yaml` |
 
-**Pipeline CronJobs** (`k8s/mlops-data/pipelines-cronjobs.yaml`) use `mlops-pipelines:local`; they start **suspended** until you set `suspend: false` and have a good image. Skip building if `data/pipelines` is not in the checkout.
+**Pipeline CronJobs** (`k8s/mlops-data/pipelines-cronjobs.yaml`) use `mlops-pipelines:local`; they start **suspended** until you set `suspend: false` and have a good image. Skip building if `mlops_data/pipelines` is not in the checkout.
 
 ## One-shot build (VM)
 

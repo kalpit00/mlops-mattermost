@@ -1,7 +1,7 @@
-# Python image for data.pipelines CLIs. Tag matches k8s/mlops-data/pipelines-cronjobs.yaml
+# Python image for mlops_data.pipelines CLIs. Tag matches k8s/mlops-data/pipelines-cronjobs.yaml
 # See: infrastructure/docs/DOCKER-BUILDS.md
 # Build: docker build -f Dockerfile.pipelines -t mlops-pipelines:local .
-# Run:   docker run --rm -v "${PWD}:/work" -w /work mlops-pipelines:local python -m data.pipelines.cli_monitoring
+# Run:   docker run --rm -v "${PWD}:/work" -w /work mlops-pipelines:local python -m mlops_data.pipelines.cli_monitoring
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -9,12 +9,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /work
 
-COPY data/pipelines/requirements.txt /tmp/mlops-pipelines-requirements.txt
+COPY mlops_data/pipelines/requirements.txt /tmp/mlops-pipelines-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/mlops-pipelines-requirements.txt
 
-# Repo tree (data package + modules) expected via bind mount for local runs.
-# For CI/Kubernetes, copy minimal tree so `python -m data.pipelines.*` works without mount.
-COPY data/__init__.py data/__init__.py
-COPY data/pipelines data/pipelines
+# Repo tree (mlops_data package + modules) expected via bind mount for local runs.
+# For CI/Kubernetes, copy minimal tree so `python -m mlops_data.pipelines.*` works without mount.
+COPY mlops_data/__init__.py mlops_data/__init__.py
+COPY mlops_data/pipelines mlops_data/pipelines
 
-CMD ["python", "-m", "data.pipelines.cli_monitoring"]
+CMD ["python", "-m", "mlops_data.pipelines.cli_monitoring"]

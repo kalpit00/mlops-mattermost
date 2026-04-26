@@ -14,7 +14,7 @@ Learn more about the following use cases with Mattermost:
 
 Other useful resources:
 
-- **Moderation / MLOps data pipelines** (this repository extension): [data/README.md](data/README.md) and [data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md](data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md) (tests: [data/TESTING.md](data/TESTING.md)).
+- **Moderation / MLOps data pipelines** (this repository extension): [mlops_data/pipelines/README.md](mlops_data/pipelines/README.md), [mlops_data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md](mlops_data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md) (tests: [mlops_data/TESTING.md](mlops_data/TESTING.md)).
 - [Download and Install Mattermost](https://docs.mattermost.com/guides/deployment.html) - Install, setup, and configure your own Mattermost instance.
 - [Product documentation](https://docs.mattermost.com/) - Learn how to run a Mattermost instance and take advantage of all the features.
 - [Developer documentation](https://developers.mattermost.com/) - Contribute code to Mattermost or build an integration via APIs, Webhooks, slash commands, Apps, and plugins.

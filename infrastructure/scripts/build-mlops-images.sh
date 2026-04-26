@@ -17,11 +17,11 @@ docker build -f Dockerfile.serving -t mlops-serving:local .
 echo "==> mlops-training:local (training.train)"
 docker build -f Dockerfile.training -t mlops-training:local .
 
-if [[ -d data/pipelines ]] && [[ -f data/pipelines/requirements.txt ]]; then
-  echo "==> mlops-pipelines:local (data.pipelines CLIs for CronJobs)"
+if [[ -d mlops_data/pipelines ]] && [[ -f mlops_data/pipelines/requirements.txt ]]; then
+  echo "==> mlops-pipelines:local (mlops_data.pipelines CLIs for CronJobs)"
   docker build -f Dockerfile.pipelines -t mlops-pipelines:local .
 else
-  echo "==> skip mlops-pipelines (data/pipelines not present; optional for Jupyter + CronJobs)"
+  echo "==> skip mlops-pipelines (mlops_data/pipelines not present; optional for Jupyter + CronJobs)"
 fi
 
 echo "Done. Load into K3s: docker save ... | sudo k3s ctr images import -"

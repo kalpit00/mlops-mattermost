@@ -1,4 +1,4 @@
-# Scheduled + manual runs for data/pipelines (Jigsaw ingest, synthetic, dataset build, drift monitor).
+# Scheduled + manual runs for mlops_data/pipelines (Jigsaw ingest, synthetic, dataset build, drift monitor).
 #
 # Configure via repository Variables / Secrets (examples):
 #   MLOPS_MONITOR_TRAIN_PARQUET, MLOPS_MONITOR_REFERENCE_JSON, MLOPS_S3_*, secrets for ingest sources.
@@ -6,7 +6,7 @@
 # Optional: set MLOPS_ENABLE_SCHEDULED_INGEST=true and provide raw Jigsaw files under the
 #   configured MLOPS_LOCAL_ARTIFACTS_ROOT (e.g. from a prior sync job) for Sunday ingest.
 # Synthetic (manual only): vars MLOPS_MM_BASE_URL, MLOPS_MM_CHANNEL_ID, MLOPS_SYNTHETIC_DELIVERY_MODE;
-#   secret MLOPS_MM_TOKEN (see data/pipelines/synthetic_messages.py).
+#   secret MLOPS_MM_TOKEN (see mlops_data/pipelines/synthetic_messages.py).
 
 name: MLOps data pipelines
 
@@ -22,7 +22,7 @@ on:
         type: boolean
         default: false
       run_ingest:
-        description: Run Jigsaw ingestion (needs raw CSVs / env; see data/pipelines/jigsaw_ingestion)
+        description: Run Jigsaw ingestion (needs raw CSVs / env; see mlops_data/pipelines/jigsaw_ingestion)
         type: boolean
         default: false
       run_synthetic:
@@ -54,10 +54,10 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: data/pipelines/requirements.txt
+          cache-dependency-path: mlops_data/pipelines/requirements.txt
 
       - name: Install pipeline dependencies
-        run: python -m pip install -r data/pipelines/requirements.txt
+        run: python -m pip install -r mlops_data/pipelines/requirements.txt
 
       # Only export non-empty Values so unset repo Variables do not override Python defaults.
       - name: Apply repository Variables (optional)
@@ -88,15 +88,15 @@ jobs:
 
       - name: Manual — monitoring
         if: github.event_name == 'workflow_dispatch' && inputs.run_monitor
-        run: python -m data.pipelines.cli_monitoring --fail-on-breach
+        run: python -m mlops_data.pipelines.cli_monitoring --fail-on-breach
 
       - name: Manual — dataset build
         if: github.event_name == 'workflow_dispatch' && inputs.run_dataset
-        run: python -m data.pipelines.cli_dataset_build --strict
+        run: python -m mlops_data.pipelines.cli_dataset_build --strict
 
       - name: Manual — Jigsaw ingest
         if: github.event_name == 'workflow_dispatch' && inputs.run_ingest
-        run: python -m data.pipelines.cli_jigsaw
+        run: python -m mlops_data.pipelines.cli_jigsaw
 
       - name: Manual — synthetic generation
         if: github.event_name == 'workflow_dispatch' && inputs.run_synthetic
@@ -105,7 +105,7 @@ jobs:
           MLOPS_MM_CHANNEL_ID: ${{ vars.MLOPS_MM_CHANNEL_ID }}
           MLOPS_SYNTHETIC_DELIVERY_MODE: ${{ vars.MLOPS_SYNTHETIC_DELIVERY_MODE }}
           MLOPS_MM_TOKEN: ${{ secrets.MLOPS_MM_TOKEN }}
-        run: python -m data.pipelines.cli_synthetic
+        run: python -m mlops_data.pipelines.cli_synthetic
 
       - name: Scheduled — drift monitor
         if: github.event_name == 'schedule'
@@ -113,20 +113,20 @@ jobs:
           MLOPS_MONITOR_FAIL_ON_BREACH: ${{ vars.MLOPS_MONITOR_FAIL_ON_BREACH }}
         run: |
           if [ "${MLOPS_MONITOR_FAIL_ON_BREACH}" = "true" ]; then
-            python -m data.pipelines.cli_monitoring --fail-on-breach
+            python -m mlops_data.pipelines.cli_monitoring --fail-on-breach
           else
-            python -m data.pipelines.cli_monitoring
+            python -m mlops_data.pipelines.cli_monitoring
           fi
 
       - name: Scheduled — dataset build (daily)
         if: github.event_name == 'schedule'
-        run: python -m data.pipelines.cli_dataset_build --strict
+        run: python -m mlops_data.pipelines.cli_dataset_build --strict
 
       - name: Scheduled — Jigsaw ingest (optional, Sundays UTC)
         if: github.event_name == 'schedule' && vars.MLOPS_ENABLE_SCHEDULED_INGEST == 'true'
         run: |
           if [ "$(date -u +%u)" = "7" ]; then
-            python -m data.pipelines.cli_jigsaw --no-copy
+            python -m mlops_data.pipelines.cli_jigsaw --no-copy
           else
             echo "Skip scheduled ingest (not Sunday UTC)."
           fi

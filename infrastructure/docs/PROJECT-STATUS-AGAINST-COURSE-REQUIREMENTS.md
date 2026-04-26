@@ -29,7 +29,7 @@ Living checklist for what is **implemented in repo / on Chameleon** vs **still o
 | **Serving** | Set `MODEL_S3_URI` in `k8s/apps/serving/serving.yaml` to a real artifact in MinIO after training. |
 | **End-to-end proof** | Message → log → MinIO; training run in MLflow; inference hit from Mattermost. |
 | **CI/CD, three envs** | No Argo/GitOps in `deploy-all` path; add overlays or branches when required. `k8s/gitops/ARGO-CD-INSTALL.md` is reference only. |
-| **Data pipelines repo** | `data/pipelines/` (if used) must be present for CI workflows; not verified here. |
+| **Data pipelines repo** | `mlops_data/pipelines/` (if used) must be present for CI workflows; not verified here. |
 | **Safeguarding** | No single doc; map fairness/explainability/privacy to what you actually ship. |
 | **Monitoring / alerts** | metrics-server only; no Prometheus/Loki stack in manifests. |
 | **Course write-ups / videos** | Grading artifacts out of band (Gradescope). |

@@ -1,5 +1,5 @@
 # MLOps data pipelines — run from the repository root (PYTHONPATH = cwd).
-# Requires: Python 3.11+, `pip install -r data/pipelines/requirements.txt` (see mlops-install).
+# Requires: Python 3.11+, `pip install -r mlops_data/pipelines/requirements.txt` (see mlops-install).
 
 .PHONY: mlops-install mlops-ingest mlops-synthetic mlops-dataset mlops-monitor mlops-promotion-gate \
 	mlops-docker-pipelines mlops-docker-synthetic mlops-docker-monitor
@@ -7,24 +7,24 @@
 PYTHON ?= python
 
 mlops-install:
-	$(PYTHON) -m pip install -r data/pipelines/requirements.txt
+	$(PYTHON) -m pip install -r mlops_data/pipelines/requirements.txt
 
 mlops-ingest:
-	$(PYTHON) -m data.pipelines.cli_jigsaw
+	$(PYTHON) -m mlops_data.pipelines.cli_jigsaw
 
 mlops-synthetic:
-	$(PYTHON) -m data.pipelines.cli_synthetic
+	$(PYTHON) -m mlops_data.pipelines.cli_synthetic
 
 mlops-dataset:
-	$(PYTHON) -m data.pipelines.cli_dataset_build --strict
+	$(PYTHON) -m mlops_data.pipelines.cli_dataset_build --strict
 
 mlops-monitor:
-	$(PYTHON) -m data.pipelines.cli_monitoring --fail-on-breach
+	$(PYTHON) -m mlops_data.pipelines.cli_monitoring --fail-on-breach
 
 mlops-promotion-gate:
-	$(PYTHON) -m data.pipelines.cli_promotion_gate
+	$(PYTHON) -m mlops_data.pipelines.cli_promotion_gate
 
-# Docker — requires .env from docker-compose-data.env.example (see data/README.md)
+# Docker — requires .env from docker-compose-data.env.example (see mlops_data/pipelines/README.md)
 mlops-docker-pipelines:
 	docker compose -f docker-compose-data.yml --profile mlops build mlops-pipelines
 
@@ -33,4 +33,4 @@ mlops-docker-synthetic:
 
 mlops-docker-monitor:
 	docker compose -f docker-compose-data.yml --profile mlops run --rm mlops-pipelines \
-		python -m data.pipelines.cli_monitoring --fail-on-breach
+		python -m mlops_data.pipelines.cli_monitoring --fail-on-breach

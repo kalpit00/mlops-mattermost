@@ -7,11 +7,11 @@ Kubernetes: **Jupyter** plus optional **`mlops-pipelines` CronJobs**. Object sto
 | Artifact                                     | Role                                                                          |
 | -------------------------------------------- | ----------------------------------------------------------------------------- |
 | `docker-compose-data.yml`                    | Local dev: MinIO + Jupyter + `mlops-pipelines` profiles                       |
-| `Dockerfile.pipelines`                       | Image for `python -m data.pipelines.*`                                        |
+| `Dockerfile.pipelines`                       | Image for `python -m mlops_data.pipelines.*`                                        |
 | `.github/workflows/mlops-data-pipelines.yml` | CI schedules / manual runs                                                    |
-| `data/pipelines/`                            | Pipeline code uploaded to S3 bucket **`moderation-data`** on the shared MinIO |
+| `mlops_data/pipelines/`                            | Pipeline code uploaded to S3 bucket **`moderation-data`** on the shared MinIO |
 
-Ensure `data/pipelines/` is committed (see root `.gitignore` allowlist) so `Dockerfile.pipelines` builds in CI and locally.
+Ensure `mlops_data/pipelines/` is committed so `Dockerfile.pipelines` builds in CI and locally. Runtime outputs stay under repo `data/` (gitignored; Mattermost local store + artifacts).
 
 ## URLs (same floating IP as the rest of the stack; nip.io)
 
@@ -50,7 +50,7 @@ kubectl apply -f pipelines-cronjobs.yaml
 
 ## Pipeline CronJobs
 
-[`pipelines-cronjobs.yaml`](pipelines-cronjobs.yaml) runs the same modules as Compose / GitHub Actions (`data.pipelines.cli_monitoring`, `data.pipelines.cli_dataset_build`). They:
+[`pipelines-cronjobs.yaml`](pipelines-cronjobs.yaml) runs the same modules as Compose / GitHub Actions (`mlops_data.pipelines.cli_monitoring`, `mlops_data.pipelines.cli_dataset_build`). They:
 
 - Use **`MLOPS_S3_ENDPOINT=http://minio.platform.svc.cluster.local:9000`** and **`MLOPS_S3_BUCKET=moderation-data`**.
 - Read credentials from **`minio-secret`** in namespace `mlops-data` (must match the platform MinIO credentials).

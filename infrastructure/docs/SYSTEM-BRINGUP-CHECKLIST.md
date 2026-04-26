@@ -109,7 +109,7 @@ Order matches [`scripts/deploy-all.sh`](../scripts/deploy-all.sh):
 | Mattermost MLOps | `server/build/Dockerfile.mlops`         | `mattermost-mlops:local` |
 | Serving          | `Dockerfile.serving` / `serving/`       | `mlops-serving:local`    |
 | Training         | `Dockerfile.training` / `training/`   | `mlops-training:local`   |
-| Pipelines        | `Dockerfile.pipelines` / `data/pipelines` | `mlops-pipelines:local` (CronJobs, optional) |
+| Pipelines        | `Dockerfile.pipelines` / `mlops_data/pipelines` | `mlops-pipelines:local` (CronJobs, optional) |
 
 - [ ] Run [`scripts/build-mlops-images.sh`](../scripts/build-mlops-images.sh) from the **repo root** on the VM, then `k3s ctr images import` (see [DOCKER-BUILDS.md](DOCKER-BUILDS.md)) **or** push to a registry and change `image:` + `imagePullSecret`.
 - [ ] (Optional) Document registry name and tags in your team wiki.
