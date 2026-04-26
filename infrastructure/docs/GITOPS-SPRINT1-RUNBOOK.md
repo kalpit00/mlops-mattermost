@@ -115,13 +115,10 @@ kubectl apply -f infrastructure/argocd/applications/mlops-applications.yaml
 Use `18080` to avoid colliding with app ports.
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d; echo
-
 kubectl -n argocd port-forward svc/argocd-server 18080:443
 ```
 
-Open `https://localhost:18080`.
+Open `https://localhost:18080`. When using `deploy-gitops-stack.sh`, log in as `admin` with `ARGOCD_ADMIN_PASSWORD` from `infrastructure/.env`.
 
 For a public demo URL:
 

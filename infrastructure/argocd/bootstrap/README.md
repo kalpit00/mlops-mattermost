@@ -32,12 +32,10 @@ kubectl apply -f infrastructure/argocd/applications/mlops-applications.yaml
 Use a local port that does not collide with Mattermost, MLflow, MinIO, Jupyter, or serving smoke tests:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d; echo
 kubectl -n argocd port-forward svc/argocd-server 18080:443
 ```
 
-Open `https://localhost:18080`, user `admin`.
+Open `https://localhost:18080`, user `admin`. The password is `ARGOCD_ADMIN_PASSWORD` from `infrastructure/.env` when using `deploy-gitops-stack.sh`.
 
 For a live demo, expose ArgoCD through the cluster ingress controller:
 

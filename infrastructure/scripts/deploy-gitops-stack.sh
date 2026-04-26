@@ -32,6 +32,12 @@ sync_app() {
 require_cmd kubectl
 require_cmd helm
 
+if [[ -z "${ARGOCD_ADMIN_PASSWORD:-}" ]]; then
+  echo "Missing required env var: ARGOCD_ADMIN_PASSWORD" >&2
+  echo "Add it to infrastructure/.env; it is used to set the public ArgoCD demo login." >&2
+  exit 1
+fi
+
 echo "[1/8] Creating Kubernetes secrets from infrastructure/.env..."
 ./infrastructure/scripts/create-secrets.sh
 ./infrastructure/scripts/create-mlops-data-secrets.sh
@@ -50,6 +56,16 @@ echo "[4/8] Installing or updating ArgoCD..."
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.0/manifests/install.yaml
 kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s
+
+echo "      Setting ArgoCD admin password from infrastructure/.env..."
+argocd_bcrypt="$(kubectl -n argocd exec deploy/argocd-server -- argocd account bcrypt --password "${ARGOCD_ADMIN_PASSWORD}" | tail -n 1 | tr -d '\r')"
+argocd_mtime="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+kubectl -n argocd patch secret argocd-secret --type merge -p "$(cat <<EOF
+{"stringData":{"admin.password":"${argocd_bcrypt}","admin.passwordMtime":"${argocd_mtime}"}}
+EOF
+)"
+kubectl -n argocd rollout restart deploy/argocd-server
+kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
 
 echo "[5/8] Applying ArgoCD project, applications, and public ArgoCD ingress..."
 kubectl apply -f infrastructure/argocd/projects/mlops.yaml
@@ -87,6 +103,5 @@ Public demo URLs:
   Pushgateway:   http://pushgateway.129-114-27-105.nip.io
   ArgoCD:        http://argocd.129-114-27-105.nip.io
 
-ArgoCD username is admin. To print its password:
-  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+ArgoCD username is admin. The password is ARGOCD_ADMIN_PASSWORD from infrastructure/.env.
 EOF
