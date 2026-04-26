@@ -7,7 +7,8 @@
 # Defaults OLD_FLOAT_IP to 129.114.25.58 if omitted.
 # nip.io label: dots -> hyphens (e.g. 203.0.113.10 -> 203-0-113-10.nip.io)
 #
-# Then: git diff, commit, deploy-all.sh on the VM, kubectl apply refreshed manifests.
+# Then: git diff, commit, and let ArgoCD sync the refreshed Helm values.
+# Manual fallback: deploy-all.sh still applies the legacy k8s/ manifests.
 
 set -euo pipefail
 
@@ -17,7 +18,7 @@ if [[ $# -lt 1 || $# -gt 2 ]]; then
 fi
 
 NEW_DOTTED="$1"
-OLD_DOTTED="${2:-129.114.25.58}"
+OLD_DOTTED="${2:-129.114.27.105}"
 
 if ! [[ "$NEW_DOTTED" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Error: NEW_FLOAT_IP must look like 203.0.113.10" >&2
@@ -38,6 +39,12 @@ FILES=(
   infrastructure/k8s/platform/platform-ingress.yaml
   infrastructure/k8s/mlops-data/mlops-data-ingress.yaml
   infrastructure/k8s/mlops-data/README.md
+  infrastructure/helm/mlops-stack/values.yaml
+  infrastructure/helm/mlops-stack/values/platform.yaml
+  infrastructure/helm/mlops-stack/values/production.yaml
+  infrastructure/docs/GITOPS-SPRINT1-RUNBOOK.md
+  infrastructure/scripts/e2e-mlmoderation-minio.sh
+  infrastructure/scripts/README.md
 )
 
 for f in "${FILES[@]}"; do

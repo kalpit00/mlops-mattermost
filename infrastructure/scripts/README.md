@@ -11,9 +11,9 @@ You do **not** need `npm`, `node`, or `uv` on the VM for the default path: image
 - `install-chameleon-dev-tools.sh`: OS packages for scripts + Docker (run with `sudo` once per VM).
 - `build-mlops-images.sh`: `docker build` for `mattermost-mlops:local`, `mlops-serving:local`, `mlops-training:local`, and `mlops-pipelines:local` if `mlops_data/pipelines` exists.
 - `bootstrap-k8s.sh`: install K3s, ingress-nginx, and metrics-server.
-- `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving` — same MinIO credentials everywhere for the single cluster MinIO).
+- `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving`, `mlops-staging`, `mlops-canary` — same MinIO credentials everywhere for the single cluster MinIO).
 - `create-mlops-data-secrets.sh`: secrets for `mlops-data` (Jupyter token + `minio-secret` mirroring platform MinIO credentials).
-- `deploy-all.sh`: apply all `k8s/` manifests in order, ending with **`mlops-data/`** (requires `create-mlops-data-secrets.sh` preflight).
+- `deploy-all.sh`: legacy/manual fallback that applies all `k8s/` manifests in order, ending with **`mlops-data/`** (requires `create-mlops-data-secrets.sh` preflight). Sprint 1's preferred path is ArgoCD + Helm; see [GITOPS-SPRINT1-RUNBOOK.md](../docs/GITOPS-SPRINT1-RUNBOOK.md).
 - `deploy-mlops-data.sh`: re-apply only `k8s/mlops-data` (after `create-mlops-data-secrets.sh`).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.
 - `set-floating-ip-in-manifests.sh`: replace `nip.io` / `MM_SERVICESETTINGS_SITEURL` hosts after Chameleon assigns a **new** floating IP (run from repo root; see `terraform/README.md`).

@@ -1,0 +1,248 @@
+{{- if .Values.platform.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shared-artifacts-pvc
+  namespace: {{ .Values.platform.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.platform.storage.artifactsSize | quote }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data-pvc
+  namespace: {{ .Values.platform.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.platform.storage.mlflowSize | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: {{ .Values.platform.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: {{ .Values.platform.minio.image }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.platform.minio.resources | indent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: shared-artifacts-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: {{ .Values.platform.namespace }}
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+    - name: console
+      port: 9001
+      targetPort: console
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: {{ .Values.platform.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      initContainers:
+        - name: ensure-minio-bucket
+          image: minio/mc:latest
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              for i in $(seq 1 90); do
+                if mc alias set local {{ .Values.global.minioEndpoint }} \
+                  "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" 2>/dev/null; then
+                  break
+                fi
+                sleep 2
+              done
+              mc mb --ignore-existing local/mlflow-artifacts
+              mc mb --ignore-existing local/{{ .Values.global.moderationDataBucket }}
+      containers:
+        - name: mlflow
+          image: {{ .Values.platform.mlflow.image }}
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: {{ .Values.global.minioEndpoint | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.global.s3Region | quote }}
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: {{ .Values.platform.mlflow.allowedHosts | quote }}
+            - name: MLFLOW_SERVER_CORS_ALLOWED_ORIGINS
+              value: {{ .Values.platform.mlflow.corsAllowedOrigins | quote }}
+          args:
+            - mlflow
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "5000"
+            - --backend-store-uri
+            - sqlite:////mlflow-data/mlflow.db
+            - --default-artifact-root
+            - s3://mlflow-artifacts/
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+{{ toYaml .Values.platform.mlflow.resources | indent 12 }}
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /mlflow-data
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: mlflow-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: {{ .Values.platform.namespace }}
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
+{{- if .Values.platform.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform
+  namespace: {{ .Values.platform.namespace }}
+  annotations:
+{{ toYaml .Values.global.ingress.annotations | indent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+    - host: {{ .Values.platform.ingress.mlflowHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mlflow
+                port:
+                  number: 5000
+    - host: {{ .Values.platform.ingress.minioHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9001
+{{- end }}
+{{- end }}

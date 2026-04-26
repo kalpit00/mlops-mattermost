@@ -1,0 +1,30 @@
+serving:
+  enabled: true
+  namespace: mlops-serving
+  modelAlias: production
+  servingModelVersion: tfidf-logreg-production
+
+training:
+  enabled: true
+  namespace: mlops-training
+
+mattermost:
+  enabled: true
+  namespace: mattermost
+  host: 129-114-27-105.nip.io
+  siteUrl: http://129-114-27-105.nip.io
+  inferenceUrl: http://ml-serving.mlops-serving.svc.cluster.local:8000/score
+
+data:
+  enabled: true
+  namespace: mlops-data
+  jupyter:
+    enabled: true
+    host: data-jupyter.129-114-27-105.nip.io
+  pipelines:
+    driftMonitor:
+      enabled: true
+      suspend: true
+    datasetBuild:
+      enabled: true
+      suspend: true

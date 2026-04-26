@@ -1,0 +1,97 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-platform
+  namespace: argocd
+  labels:
+    mlops.layer: platform
+spec:
+  project: mlops
+  source:
+    repoURL: https://github.com/kalpit00/mlops-mattermost.git
+    targetRevision: master
+    path: infrastructure/helm/mlops-stack
+    helm:
+      valueFiles:
+        - values/platform.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-staging
+  namespace: argocd
+  labels:
+    mlops.environment: staging
+spec:
+  project: mlops
+  source:
+    repoURL: https://github.com/kalpit00/mlops-mattermost.git
+    targetRevision: master
+    path: infrastructure/helm/mlops-stack
+    helm:
+      valueFiles:
+        - values/staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-canary
+  namespace: argocd
+  labels:
+    mlops.environment: canary
+spec:
+  project: mlops
+  source:
+    repoURL: https://github.com/kalpit00/mlops-mattermost.git
+    targetRevision: master
+    path: infrastructure/helm/mlops-stack
+    helm:
+      valueFiles:
+        - values/canary.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops-canary
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-production
+  namespace: argocd
+  labels:
+    mlops.environment: production
+spec:
+  project: mlops
+  source:
+    repoURL: https://github.com/kalpit00/mlops-mattermost.git
+    targetRevision: master
+    path: infrastructure/helm/mlops-stack
+    helm:
+      valueFiles:
+        - values/production.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mattermost
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

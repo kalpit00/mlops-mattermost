@@ -1,0 +1,133 @@
+global:
+  platformNamespace: platform
+  minioSecretName: minio-secret
+  minioEndpoint: http://minio.platform.svc.cluster.local:9000
+  s3Region: us-east-1
+  moderationDataBucket: moderation-data
+  mlflowTrackingUri: http://mlflow.platform.svc.cluster.local:5000
+  ingress:
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: 256m
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+      nginx.ingress.kubernetes.io/proxy-buffering: "off"
+      nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+      nginx.ingress.kubernetes.io/service-upstream: "true"
+
+platform:
+  enabled: false
+  namespace: platform
+  storage:
+    artifactsSize: 15Gi
+    mlflowSize: 3Gi
+  minio:
+    image: minio/minio:latest
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.11.1-full
+    allowedHosts: "*"
+    corsAllowedOrigins: "*"
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 3Gi
+  ingress:
+    enabled: true
+    mlflowHost: mlflow.129-114-27-105.nip.io
+    minioHost: minio.129-114-27-105.nip.io
+
+serving:
+  enabled: false
+  namespace: mlops-serving
+  name: ml-serving
+  replicas: 1
+  image: kalpit00/mlops-serving:v2
+  imagePullPolicy: IfNotPresent
+  initImage: ghcr.io/mlflow/mlflow:v3.11.1-full
+  modelName: tfidf_logreg
+  modelAlias: production
+  modelArtifactPath: tfidf_logreg_pipeline.joblib
+  servingModelVersion: tfidf-logreg
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+training:
+  enabled: false
+  namespace: mlops-training
+  name: ml-training-retrain
+  image: kalpit00/mlops-training:v3
+  imagePullPolicy: IfNotPresent
+  schedule: "0 3 * * 0"
+  configPath: /app/training/configs/balanced.yaml
+  modelName: tfidf_logreg
+  minFeedbackRows: "10"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+mattermost:
+  enabled: false
+  namespace: mattermost
+  image: kalpit00/mattermost-mlops:v4
+  imagePullPolicy: IfNotPresent
+  host: 129-114-27-105.nip.io
+  siteUrl: http://129-114-27-105.nip.io
+  inferenceUrl: http://ml-serving.mlops-serving.svc.cluster.local:8000/score
+  inferenceTimeoutMs: "2000"
+  primaryTeam: nyu
+  dataPvcSize: 10Gi
+  postgres:
+    image: postgres:15
+    storageSize: 10Gi
+    dbName: mattermost
+  logUploader:
+    image: minio/mc:latest
+    syncIntervalSec: "60"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 3Gi
+
+data:
+  enabled: false
+  namespace: mlops-data
+  pipelines:
+    image: mlops-pipelines:local
+    imagePullPolicy: IfNotPresent
+    driftMonitor:
+      enabled: true
+      suspend: true
+      schedule: "15 7 * * *"
+    datasetBuild:
+      enabled: true
+      suspend: true
+      schedule: "30 8 * * 1"
+  jupyter:
+    enabled: true
+    image: jupyter/base-notebook:latest
+    host: data-jupyter.129-114-27-105.nip.io
+    pvcSize: 10Gi

@@ -1,0 +1,7 @@
+platform:
+  enabled: true
+  namespace: platform
+  ingress:
+    enabled: true
+    mlflowHost: mlflow.129-114-27-105.nip.io
+    minioHost: minio.129-114-27-105.nip.io

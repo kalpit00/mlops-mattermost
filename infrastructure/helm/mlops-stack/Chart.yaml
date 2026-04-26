@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mlops-stack
+description: Helm chart for the Mattermost ML moderation MLOps stack on the Chameleon VM.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

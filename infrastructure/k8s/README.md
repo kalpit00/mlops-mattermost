@@ -1,6 +1,8 @@
 # Kubernetes manifests
 
-All workload YAML for the Chameleon K3s cluster. **Apply** via `../scripts/deploy-all.sh` (not ad-hoc single files for full bring-up).
+Legacy/manual workload YAML for the Chameleon K3s cluster. **Apply** via `../scripts/deploy-all.sh` only when using the non-GitOps fallback.
+
+Sprint 1 adds the preferred GitOps path under `../helm/mlops-stack` and `../argocd`: ArgoCD renders the Helm chart once per layer/environment (`platform`, `staging`, `canary`, `production`).
 
 | Path | Workloads |
 |------|-----------|
@@ -11,6 +13,6 @@ All workload YAML for the Chameleon K3s cluster. **Apply** via `../scripts/deplo
 | `platform/` | MinIO, MLflow, ingress |
 | `apps/serving/`, `apps/training/` | FastAPI (`mlops-serving:local`), training `Job` / `CronJob` (`mlops-training:local`) — [DOCKER-BUILDS.md](../docs/DOCKER-BUILDS.md) |
 | `mlops-data/` | Jupyter, ingress, pipeline CronJobs — [README](mlops-data/README.md) |
-| `gitops/` | Optional Argo CD install notes only |
+| `gitops/` | Older Argo CD install notes; the active Sprint 1 GitOps manifests live in `../argocd/` |
 
 **Architecture:** [../docs/ARCHITECTURE-MASTER-PLAN.md](../docs/ARCHITECTURE-MASTER-PLAN.md).

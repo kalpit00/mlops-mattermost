@@ -1,6 +1,8 @@
 # Argo CD on this cluster (GitOps)
 
-Use this as the **order of operations** after the cluster and platform stack are healthy. Aligns with the MLOps lab: _Terraform_ → _bootstrap cluster_ → _Argo CD_ syncs from Git\*.
+Use this as background only. The active Sprint 1 ArgoCD bootstrap is now [`../../argocd/bootstrap/README.md`](../../argocd/bootstrap/README.md), with Helm values under [`../../helm/mlops-stack`](../../helm/mlops-stack).
+
+Order of operations still aligns with the MLOps lab: _Terraform_ → _bootstrap cluster_ → _Argo CD_ syncs from Git.
 
 ## 1. Install Argo CD (one-time)
 

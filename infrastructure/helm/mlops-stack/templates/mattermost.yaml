@@ -1,0 +1,231 @@
+{{- if .Values.mattermost.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mattermost-data-pvc
+  namespace: {{ .Values.mattermost.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mattermost.dataPvcSize | quote }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mattermost-postgres
+  namespace: {{ .Values.mattermost.namespace }}
+spec:
+  serviceName: mattermost-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mattermost-postgres
+  template:
+    metadata:
+      labels:
+        app: mattermost-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.mattermost.postgres.image }}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.mattermost.postgres.dbName | quote }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mattermost-db-secret
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mattermost-db-secret
+                  key: password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.mattermost.postgres.storageSize | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mattermost-postgres
+  namespace: {{ .Values.mattermost.namespace }}
+spec:
+  selector:
+    app: mattermost-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mattermost
+  namespace: {{ .Values.mattermost.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mattermost
+  template:
+    metadata:
+      labels:
+        app: mattermost
+    spec:
+      containers:
+        - name: mattermost
+          image: {{ .Values.mattermost.image }}
+          imagePullPolicy: {{ .Values.mattermost.imagePullPolicy }}
+          ports:
+            - containerPort: 8065
+          env:
+            - name: MM_SQLSETTINGS_DRIVERNAME
+              value: postgres
+            - name: MM_SQLSETTINGS_DATASOURCE
+              valueFrom:
+                secretKeyRef:
+                  name: mattermost-app-secret
+                  key: datasource
+            - name: MM_SERVICESETTINGS_SITEURL
+              value: {{ .Values.mattermost.siteUrl | quote }}
+            - name: MM_SERVICESETTINGS_LISTENADDRESS
+              value: ":8065"
+            - name: MM_SERVICESETTINGS_CONNECTION_SECURITY
+              value: ""
+            - name: MM_TEAMSETTINGS_ENABLEUSERCREATION
+              value: "true"
+            - name: MM_TEAMSETTINGS_ENABLEOPENSERVER
+              value: "true"
+            - name: MM_TEAMSETTINGS_RESTRICTCREATIONTODOMAINS
+              value: ""
+            - name: MM_TEAMSETTINGS_EXPERIMENTALPRIMARYTEAM
+              value: {{ .Values.mattermost.primaryTeam | quote }}
+            - name: MM_SERVICESETTINGS_ENABLESIGNUPWITHEMAIL
+              value: "true"
+            - name: MM_SERVICESETTINGS_ENABLESIGNINWITHEMAIL
+              value: "true"
+            - name: MM_SERVICESETTINGS_REQUIREEMAILVERIFICATION
+              value: "false"
+            - name: MM_MLMODERATION_ENABLE_ONLINE_FEATURES
+              value: "true"
+            - name: MM_MLMODERATION_ENABLE_FEEDBACK_CAPTURE
+              value: "true"
+            - name: MM_MLMODERATION_LOG_DIR
+              value: /mattermost/data/mlmoderation/logs
+            - name: MM_MLMODERATION_FEEDBACK_LOG_DIR
+              value: /mattermost/data/mlmoderation/feedback
+            - name: MM_MLMODERATION_INFERENCE_URL
+              value: {{ .Values.mattermost.inferenceUrl | quote }}
+            - name: MM_MLMODERATION_INFERENCE_TIMEOUT_MS
+              value: {{ .Values.mattermost.inferenceTimeoutMs | quote }}
+          resources:
+{{ toYaml .Values.mattermost.resources | indent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /api/v4/system/ping
+              port: 8065
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: mattermost-data
+              mountPath: /mattermost/data
+        - name: mlmoderation-log-uploader
+          image: {{ .Values.mattermost.logUploader.image }}
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+            - name: MLOPS_S3_BUCKET
+              value: {{ .Values.global.moderationDataBucket | quote }}
+            - name: SYNC_INTERVAL_SEC
+              value: {{ .Values.mattermost.logUploader.syncIntervalSec | quote }}
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              mc alias set platform {{ .Values.global.minioEndpoint }} "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              mc mb --ignore-existing "platform/$MLOPS_S3_BUCKET"
+              while true; do
+                mc mirror --overwrite --remove /mattermost/data/mlmoderation "platform/$MLOPS_S3_BUCKET/mlmoderation" || true
+                sleep "$SYNC_INTERVAL_SEC"
+              done
+          volumeMounts:
+            - name: mattermost-data
+              mountPath: /mattermost/data
+      volumes:
+        - name: mattermost-data
+          persistentVolumeClaim:
+            claimName: mattermost-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mattermost
+  namespace: {{ .Values.mattermost.namespace }}
+spec:
+  selector:
+    app: mattermost
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8065
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mattermost
+  namespace: {{ .Values.mattermost.namespace }}
+  annotations:
+{{ toYaml .Values.global.ingress.annotations | indent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+    - host: {{ .Values.mattermost.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mattermost
+                port:
+                  number: 80
+{{- end }}

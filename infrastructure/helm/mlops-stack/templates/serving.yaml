@@ -1,0 +1,137 @@
+{{- if .Values.serving.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.serving.name }}
+  namespace: {{ .Values.serving.namespace }}
+  labels:
+    app: ml-serving
+    mlops.environment: {{ .Values.serving.modelAlias | quote }}
+spec:
+  replicas: {{ .Values.serving.replicas }}
+  selector:
+    matchLabels:
+      app: ml-serving
+  template:
+    metadata:
+      labels:
+        app: ml-serving
+        mlops.environment: {{ .Values.serving.modelAlias | quote }}
+    spec:
+      initContainers:
+        - name: fetch-model
+          image: {{ .Values.serving.initImage }}
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.global.mlflowTrackingUri | quote }}
+            - name: MODEL_NAME
+              value: {{ .Values.serving.modelName | quote }}
+            - name: MODEL_ALIAS
+              value: {{ .Values.serving.modelAlias | quote }}
+            - name: MODEL_ARTIFACT_PATH
+              value: {{ .Values.serving.modelArtifactPath | quote }}
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: {{ .Values.global.minioEndpoint | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.global.s3Region | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              python <<'PY'
+              import os
+              from mlflow import MlflowClient
+              from mlflow.artifacts import download_artifacts
+
+              name = os.environ["MODEL_NAME"]
+              alias = os.environ["MODEL_ALIAS"]
+              artifact_path = os.environ["MODEL_ARTIFACT_PATH"]
+              dst = "/models"
+
+              client = MlflowClient()
+              mv = client.get_model_version_by_alias(name=name, alias=alias)
+              print(
+                  f"Resolved {name}@{alias} -> version {mv.version}, "
+                  f"run_id {mv.run_id}, status {mv.status}"
+              )
+
+              download_artifacts(
+                  run_id=mv.run_id,
+                  artifact_path=artifact_path,
+                  dst_path=dst,
+              )
+              print(f"Downloaded {artifact_path} from run {mv.run_id} to {dst}/")
+
+              with open(f"{dst}/MODEL_VERSION", "w") as f:
+                  f.write(f"{name}@{alias}=v{mv.version} (run_id={mv.run_id})\n")
+              PY
+          volumeMounts:
+            - name: model
+              mountPath: /models
+      containers:
+        - name: api
+          image: {{ .Values.serving.image }}
+          imagePullPolicy: {{ .Values.serving.imagePullPolicy }}
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: MODEL_PATH
+              value: /models/tfidf_logreg_pipeline.joblib
+            - name: SERVING_MODEL_VERSION
+              value: {{ .Values.serving.servingModelVersion | quote }}
+          command:
+            - uvicorn
+            - app.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.serving.resources | indent 12 }}
+          volumeMounts:
+            - name: model
+              mountPath: /models
+      volumes:
+        - name: model
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.serving.name }}
+  namespace: {{ .Values.serving.namespace }}
+spec:
+  selector:
+    app: ml-serving
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+  type: ClusterIP
+{{- end }}

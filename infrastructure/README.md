@@ -5,12 +5,15 @@
 ## Layout
 
 - `terraform/` — VM, FIP, volume, security group. Copy **`terraform/terraform.tfvars.example` → `terraform.tfvars`**, set **`keypair_name`**, then `init` / `plan` / `apply` (see [`terraform/README.md`](terraform/README.md). **`tf.env.example`** = lease metadata + optional `TF_VAR_*` exports).
-- `k8s/` — YAML only; see [`k8s/README.md`](k8s/README.md).
+- `k8s/` — legacy/manual YAML fallback; see [`k8s/README.md`](k8s/README.md).
+- `helm/` — GitOps-ready Helm chart used by ArgoCD for platform, staging, canary, and production.
+- `argocd/` — AppProject and Application resources for the Helm-based GitOps flow.
 - `scripts/` — `build-mlops-images.sh`, `bootstrap-k8s.sh`, `create-secrets.sh`, `create-mlops-data-secrets.sh`, `deploy-all.sh`, FIP helper, e2e.
 - `docs/` — [index](docs/README.md).
 - **Cluster secrets (Step D):** `infrastructure/.env.example` → `infrastructure/.env` (gitignored). All `export` lines for `create-secrets.sh` and `create-mlops-data-secrets.sh` in one file. (`secrets.env` is still gitignored for legacy use.)
 
-**Namespaces (all in `deploy-all.sh` after secrets):** `mattermost`, `platform`, `mlops-serving`, `mlops-training`, `mlops-data` (Jupyter + optional pipeline CronJobs).
+**Production namespaces:** `mattermost`, `platform`, `mlops-serving`, `mlops-training`, `mlops-data` (Jupyter + optional pipeline CronJobs).
+**GitOps environment namespaces:** `mlops-staging`, `mlops-canary`, plus production reusing the namespaces above.
 
 ## Condensed bring-up
 
@@ -19,9 +22,10 @@
 3. `./infrastructure/scripts/set-floating-ip-in-manifests.sh` with the **floating IP**  
 4. `set -a && source infrastructure/.env && set +a` → `create-secrets.sh` and **`create-mlops-data-secrets.sh`** (see **`.env.example`**)  
 5. **Build and import images** — `./infrastructure/scripts/build-mlops-images.sh` then `k3s ctr images import` (see [docs/DOCKER-BUILDS.md](docs/DOCKER-BUILDS.md)).  
-6. `./infrastructure/scripts/deploy-all.sh`  
-7. Set `MODEL_S3_URI` in serving; re-apply that manifest if needed.  
+6. Manual fallback: `./infrastructure/scripts/deploy-all.sh`
+7. GitOps path: install ArgoCD, then apply [`argocd/projects/mlops.yaml`](argocd/projects/mlops.yaml) and [`argocd/applications/mlops-applications.yaml`](argocd/applications/mlops-applications.yaml).
+8. Model serving now resolves MLflow aliases per environment (`staging`, `canary`, `production`) instead of hard-coding a model URI.
 
 **Horizon / lease how-to:** [docs/chameleon-runbook.md](docs/chameleon-runbook.md).  
-**Argo / GitOps (optional):** [k8s/gitops/ARGO-CD-INSTALL.md](k8s/gitops/ARGO-CD-INSTALL.md).  
+**Argo / GitOps:** [argocd/bootstrap/README.md](argocd/bootstrap/README.md).
 No Prometheus/Grafana stack in the default path; `bootstrap-k8s.sh` installs **metrics-server** only.

@@ -1,0 +1,25 @@
+{{- $namespaces := dict -}}
+{{- if .Values.platform.enabled -}}
+{{- $_ := set $namespaces .Values.platform.namespace true -}}
+{{- end -}}
+{{- if .Values.serving.enabled -}}
+{{- $_ := set $namespaces .Values.serving.namespace true -}}
+{{- end -}}
+{{- if .Values.training.enabled -}}
+{{- $_ := set $namespaces .Values.training.namespace true -}}
+{{- end -}}
+{{- if .Values.mattermost.enabled -}}
+{{- $_ := set $namespaces .Values.mattermost.namespace true -}}
+{{- end -}}
+{{- if .Values.data.enabled -}}
+{{- $_ := set $namespaces .Values.data.namespace true -}}
+{{- end -}}
+{{- range $name, $_ := $namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/part-of: mlops-mattermost
+{{- end }}

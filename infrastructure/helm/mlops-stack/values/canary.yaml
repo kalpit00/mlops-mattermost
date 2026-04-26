@@ -1,0 +1,5 @@
+serving:
+  enabled: true
+  namespace: mlops-canary
+  modelAlias: canary
+  servingModelVersion: tfidf-logreg-canary

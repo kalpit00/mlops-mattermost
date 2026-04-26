@@ -1,0 +1,5 @@
+serving:
+  enabled: true
+  namespace: mlops-staging
+  modelAlias: staging
+  servingModelVersion: tfidf-logreg-staging

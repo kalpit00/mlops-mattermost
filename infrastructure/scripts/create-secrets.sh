@@ -25,6 +25,8 @@ kubectl create namespace mattermost --dry-run=client -o yaml | kubectl apply -f 
 kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace mlops-training --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace mlops-serving --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace mlops-staging --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace mlops-canary --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n mattermost create secret generic mattermost-db-secret \
   --from-literal=username="${MM_DB_USERNAME}" \
@@ -52,6 +54,16 @@ kubectl -n mlops-training create secret generic minio-secret \
   --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n mlops-serving create secret generic minio-secret \
+  --from-literal=root-user="${MINIO_ROOT_USER}" \
+  --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n mlops-staging create secret generic minio-secret \
+  --from-literal=root-user="${MINIO_ROOT_USER}" \
+  --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n mlops-canary create secret generic minio-secret \
   --from-literal=root-user="${MINIO_ROOT_USER}" \
   --from-literal=root-password="${MINIO_ROOT_PASSWORD}" \
   --dry-run=client -o yaml | kubectl apply -f -

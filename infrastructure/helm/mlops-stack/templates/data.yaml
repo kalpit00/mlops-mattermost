@@ -1,0 +1,239 @@
+{{- if .Values.data.enabled }}
+{{- if .Values.data.jupyter.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-jupyter-work-pvc
+  namespace: {{ .Values.data.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.data.jupyter.pvcSize | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-jupyter
+  namespace: {{ .Values.data.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-jupyter
+  template:
+    metadata:
+      labels:
+        app: data-jupyter
+    spec:
+      securityContext:
+        fsGroup: 100
+      containers:
+        - name: jupyter
+          image: {{ .Values.data.jupyter.image }}
+          ports:
+            - name: http
+              containerPort: 8888
+          env:
+            - name: JUPYTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: data-jupyter-secret
+                  key: token
+          command: ["start-notebook.sh"]
+          args:
+            - --NotebookApp.ip=0.0.0.0
+            - --NotebookApp.allow_origin=*
+          volumeMounts:
+            - name: work
+              mountPath: /home/jovyan/work
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: work
+          persistentVolumeClaim:
+            claimName: data-jupyter-work-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-jupyter
+  namespace: {{ .Values.data.namespace }}
+spec:
+  selector:
+    app: data-jupyter
+  ports:
+    - name: http
+      port: 8888
+      targetPort: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mlops-data
+  namespace: {{ .Values.data.namespace }}
+  annotations:
+{{ toYaml .Values.global.ingress.annotations | indent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+    - host: {{ .Values.data.jupyter.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: data-jupyter
+                port:
+                  number: 8888
+{{- end }}
+{{- if .Values.data.pipelines.driftMonitor.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mlops-drift-monitor
+  namespace: {{ .Values.data.namespace }}
+spec:
+  suspend: {{ .Values.data.pipelines.driftMonitor.suspend }}
+  schedule: {{ .Values.data.pipelines.driftMonitor.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pipelines
+              image: {{ .Values.data.pipelines.image }}
+              imagePullPolicy: {{ .Values.data.pipelines.imagePullPolicy }}
+              workingDir: /work
+              command: ["python"]
+              args:
+                - -m
+                - mlops_data.pipelines.cli_monitoring
+              env:
+                - name: PYTHONUNBUFFERED
+                  value: "1"
+                - name: MLOPS_SKIP_S3_UPLOAD
+                  value: "0"
+                - name: MLOPS_LOCAL_ARTIFACTS_ROOT
+                  value: /work/data/artifacts
+                - name: MLOPS_S3_ENDPOINT
+                  value: {{ .Values.global.minioEndpoint | quote }}
+                - name: MLOPS_S3_BUCKET
+                  value: {{ .Values.global.moderationDataBucket | quote }}
+                - name: MLOPS_S3_REGION
+                  value: {{ .Values.global.s3Region | quote }}
+                - name: MLOPS_S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.global.minioSecretName }}
+                      key: root-user
+                - name: MLOPS_S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.global.minioSecretName }}
+                      key: root-password
+                - name: MLOPS_MONITOR_REFERENCE_JSON
+                  value: ""
+                - name: MLOPS_MONITOR_TRAIN_PARQUET
+                  value: ""
+              volumeMounts:
+                - name: scratch
+                  mountPath: /work/data/artifacts
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
+          volumes:
+            - name: scratch
+              emptyDir: {}
+{{- end }}
+{{- if .Values.data.pipelines.datasetBuild.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mlops-dataset-build
+  namespace: {{ .Values.data.namespace }}
+spec:
+  suspend: {{ .Values.data.pipelines.datasetBuild.suspend }}
+  schedule: {{ .Values.data.pipelines.datasetBuild.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pipelines
+              image: {{ .Values.data.pipelines.image }}
+              imagePullPolicy: {{ .Values.data.pipelines.imagePullPolicy }}
+              workingDir: /work
+              command: ["python"]
+              args:
+                - -m
+                - mlops_data.pipelines.cli_dataset_build
+                - --strict
+              env:
+                - name: PYTHONUNBUFFERED
+                  value: "1"
+                - name: MLOPS_SKIP_S3_UPLOAD
+                  value: "0"
+                - name: MLOPS_LOCAL_ARTIFACTS_ROOT
+                  value: /work/data/artifacts
+                - name: MLOPS_S3_ENDPOINT
+                  value: {{ .Values.global.minioEndpoint | quote }}
+                - name: MLOPS_S3_BUCKET
+                  value: {{ .Values.global.moderationDataBucket | quote }}
+                - name: MLOPS_S3_REGION
+                  value: {{ .Values.global.s3Region | quote }}
+                - name: MLOPS_S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.global.minioSecretName }}
+                      key: root-user
+                - name: MLOPS_S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.global.minioSecretName }}
+                      key: root-password
+              volumeMounts:
+                - name: scratch
+                  mountPath: /work/data/artifacts
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 1Gi
+                limits:
+                  cpu: "4"
+                  memory: 8Gi
+          volumes:
+            - name: scratch
+              emptyDir: {}
+{{- end }}
+{{- end }}
