@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-mlops
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  mlops-overview.json: |
+    {
+      "title": "MLOps Mattermost Overview",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "15s",
+      "tags": ["mlops", "mattermost"],
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Serving requests by env/model",
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "sum(rate(ml_serving_predictions_total[1m])) by (namespace, model_version, label)",
+              "legendFormat": "{{namespace}} {{model_version}} {{label}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Serving p95 latency",
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(ml_serving_score_duration_seconds_bucket[5m])) by (le, namespace))",
+              "legendFormat": "{{namespace}} p95",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Latest drift breach",
+          "gridPos": {"x": 0, "y": 8, "w": 6, "h": 5},
+          "targets": [
+            {
+              "expr": "max(mlops_monitor_any_breach)",
+              "legendFormat": "any_breach",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Live rows seen by drift monitor",
+          "gridPos": {"x": 6, "y": 8, "w": 8, "h": 5},
+          "targets": [
+            {
+              "expr": "mlops_monitor_live_feature_rows",
+              "legendFormat": "feature rows",
+              "refId": "A"
+            },
+            {
+              "expr": "mlops_monitor_live_score_rows",
+              "legendFormat": "score rows",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Moderator decisions",
+          "gridPos": {"x": 14, "y": 8, "w": 10, "h": 5},
+          "targets": [
+            {
+              "expr": "sum(rate(mlmoderation_feedback_decisions_total[5m])) by (label, action, source)",
+              "legendFormat": "{{source}} {{label}}/{{action}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Core pod restarts",
+          "gridPos": {"x": 0, "y": 13, "w": 12, "h": 7},
+          "targets": [
+            {
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"mattermost|mlops-serving|mlops-staging|mlops-canary|mlops-data|platform\"}[15m])) by (namespace, pod)",
+              "legendFormat": "{{namespace}}/{{pod}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Recent Mattermost + serving logs",
+          "gridPos": {"x": 12, "y": 13, "w": 12, "h": 7},
+          "targets": [
+            {
+              "expr": "{namespace=~\"mattermost|mlops-serving|mlops-staging|mlops-canary\"}",
+              "refId": "A"
+            }
+          ],
+          "datasource": {"type": "loki", "uid": "Loki"}
+        }
+      ]
+    }

@@ -120,6 +120,7 @@ func MaybeProcessNewPost(logger mlog.LoggerIFace, postID, userID, channelID, mes
 
 	feat := g.features.Compute(postID, userID, channelID, message, chType)
 	score := g.scorer.Score(feat)
+	ObservePostScored(score.ModelVersion, ModelDecisionFor(score.ToxicityScore, AlertThresholdFromEnv()))
 
 	if err := g.featureLog.Append(feat); err != nil && logger != nil {
 		logger.Warn("mlmoderation: feature log write failed", mlog.Err(err))

@@ -77,8 +77,8 @@ func feedbackLogDir() string {
 }
 
 var (
-	feedbackWriter     *JSONLWriter
-	feedbackWriterOnce sync.Once
+	feedbackWriter       *JSONLWriter
+	feedbackWriterOnce   sync.Once
 	feedbackWriterV2     *JSONLWriter
 	feedbackWriterV2Once sync.Once
 )
@@ -190,6 +190,7 @@ func MaybeRecordContentFlaggingOutcome(
 	if err := feedbackWriterV2Instance().Append(v2); err != nil && logger != nil {
 		logger.Warn("mlmoderation: feedback v2 log write failed", mlog.Err(err))
 	}
+	ObserveFeedbackDecision(v2.ModerationLabel, v2.Action, v2.Source)
 }
 
 // FeedbackRowJSON returns a JSON object for debugging or alternate sinks.

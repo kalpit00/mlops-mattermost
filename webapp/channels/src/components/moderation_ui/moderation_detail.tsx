@@ -47,6 +47,8 @@ export default function ModerationDetail({alert, threshold, submitting, onSubmit
     const reviewed = alert.review_status === 'reviewed';
     const scorePct = Math.round(alert.score * 100);
     const modelDecisionClass = alert.model_decision === 'toxic' ? 'pill pill--toxic' : 'pill pill--safe';
+    const userDisplay = alert.username ? `@${alert.username}` : (alert.user_hash || alert.user_id || 'unknown');
+    const channelDisplay = alert.channel_name || alert.channel_type || 'unknown';
 
     const canSubmit = !submitting && label !== null && !reviewed;
 
@@ -82,16 +84,16 @@ export default function ModerationDetail({alert, threshold, submitting, onSubmit
                         defaultMessage='Channel:'
                     />
                 </strong>{' '}
-                {alert.channel_type || 'unknown'}{alert.channel_id ? ` (${alert.channel_id.slice(0, 8)})` : ''}
+                {channelDisplay}{alert.channel_id ? ` (${alert.channel_id.slice(0, 8)})` : ''}
             </div>
             <div className='field'>
                 <strong>
                     <FormattedMessage
                         id='moderation_ui.field_user'
-                        defaultMessage='User hash:'
+                        defaultMessage='User:'
                     />
                 </strong>{' '}
-                <code>{alert.user_hash || '—'}</code>
+                <code>{userDisplay}</code>
             </div>
 
             <div className='field message'>

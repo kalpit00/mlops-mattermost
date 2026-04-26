@@ -106,11 +106,11 @@ func (s *HeuristicScorer) Score(f FeatureRowV1) ScoreRowV1 {
 // - If MM_MLMODERATION_INFERENCE_FALLBACK=heuristic, falls back to HeuristicScorer
 // - Else returns a low score (treated as "unscored / safe default" for triage)
 type HTTPScorer struct {
-	URL            string
-	ModelVersion   string
-	Client         *http.Client
-	AuthHeader     string
-	FallbackHeur   *HeuristicScorer
+	URL          string
+	ModelVersion string
+	Client       *http.Client
+	AuthHeader   string
+	FallbackHeur *HeuristicScorer
 }
 
 type inferenceRequest struct {
@@ -167,6 +167,7 @@ func (s *HTTPScorer) modelVerFromResponse(respModel string) string {
 }
 
 func (s *HTTPScorer) Score(f FeatureRowV1) ScoreRowV1 {
+	start := time.Now()
 	reqBody := inferenceRequest{
 		Text:                f.Text,
 		ChannelType:         f.ChannelType,
@@ -192,25 +193,30 @@ func (s *HTTPScorer) Score(f FeatureRowV1) ScoreRowV1 {
 
 	resp, err := s.Client.Do(httpReq)
 	if err != nil {
+		ObserveInference("request_error", time.Since(start))
 		return s.onInferenceError(f, fmt.Errorf("inference request failed: %w", err))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		ObserveInference("non_2xx", time.Since(start))
 		return s.onInferenceError(f, fmt.Errorf("inference non-2xx: %s", resp.Status))
 	}
 
 	var parsed inferenceResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		ObserveInference("decode_error", time.Since(start))
 		return s.onInferenceError(f, fmt.Errorf("decode inference response: %w", err))
 	}
 
 	ts := parsed.ToxicityScore
 	if ts < 0 || ts > 1 {
+		ObserveInference("invalid_score", time.Since(start))
 		return s.onInferenceError(f, fmt.Errorf("invalid toxicity_score: %v", ts))
 	}
 
 	mv := s.modelVerFromResponse(parsed.ModelVersion)
+	ObserveInference("ok", time.Since(start))
 	return ScoreRowV1{
 		SchemaVersion:       ScoreRowSchemaID,
 		PostID:              f.PostID,

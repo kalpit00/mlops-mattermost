@@ -1,0 +1,16 @@
+apiVersion: v2
+name: observability-stack
+description: Shared Prometheus, Grafana, Loki, and Pushgateway stack for the MLOps Mattermost cluster.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: kube-prometheus-stack
+    version: 77.13.0
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: prometheus-pushgateway
+    version: 3.2.0
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: loki-stack
+    version: 2.10.2
+    repository: https://grafana.github.io/helm-charts

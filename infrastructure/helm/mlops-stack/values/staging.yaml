@@ -1,5 +1,6 @@
 serving:
   enabled: true
   namespace: mlops-staging
+  image: kalpit00/mlops-serving:v3
   modelAlias: staging
   servingModelVersion: tfidf-logreg-staging

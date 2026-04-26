@@ -1,5 +1,6 @@
 serving:
   enabled: true
   namespace: mlops-canary
+  image: kalpit00/mlops-serving:v3
   modelAlias: canary
   servingModelVersion: tfidf-logreg-canary

@@ -1,6 +1,8 @@
 fastapi==0.115.8
 uvicorn[standard]==0.34.0
 pydantic==2.10.6
+prometheus-client==0.21.1
+prometheus-fastapi-instrumentator==7.1.0
 # Pin sklearn + joblib to exactly match training/requirements.txt so produced
 # joblibs load cleanly in serving. Bump both files together when upgrading.
 joblib==1.4.2

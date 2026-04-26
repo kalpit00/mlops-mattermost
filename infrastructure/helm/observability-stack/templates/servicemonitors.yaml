@@ -1,0 +1,39 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-serving
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - mlops-serving
+      - mlops-staging
+      - mlops-canary
+  selector:
+    matchLabels:
+      app: ml-serving
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mattermost-mlmoderation
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - mattermost
+  selector:
+    matchLabels:
+      app: mattermost
+  endpoints:
+    - port: http
+      path: /api/v4/mlmoderation/metrics
+      interval: 15s

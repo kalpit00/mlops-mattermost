@@ -22,6 +22,7 @@ import (
 // land in moderation_feedback_v2.jsonl and flow to MinIO via the
 // existing sidecar uploader, same as everything else in this package.
 func (api *API) InitMLModeration() {
+	api.BaseRoutes.MLModeration.Handle("/metrics", mlmoderation.MetricsHandler()).Methods(http.MethodGet)
 	api.BaseRoutes.MLModeration.Handle("/alerts", api.APISessionRequired(getMLModerationAlerts)).Methods(http.MethodGet)
 	api.BaseRoutes.MLModeration.Handle("/decisions", api.APISessionRequired(submitMLModerationDecision)).Methods(http.MethodPost)
 }
@@ -55,17 +56,51 @@ func getMLModerationAlerts(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	resp, err := mlmoderation.ListAlerts(threshold, limit)
 	if err != nil {
+		mlmoderation.ObserveAlertsList("error")
 		c.Err = model.NewAppError("Api4.getMLModerationAlerts", "api.mlmoderation.list_alerts.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 		return
 	}
+	enrichMLModerationAlerts(c, &resp)
 
 	jsonData, mErr := json.Marshal(resp)
 	if mErr != nil {
+		mlmoderation.ObserveAlertsList("error")
 		c.Err = model.NewAppError("Api4.getMLModerationAlerts", "api.marshal_error", nil, "", http.StatusInternalServerError).Wrap(mErr)
 		return
 	}
 	if _, wErr := w.Write(jsonData); wErr != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(wErr))
+	}
+	mlmoderation.ObserveAlertsList("ok")
+}
+
+func enrichMLModerationAlerts(c *Context, resp *mlmoderation.AlertsResponse) {
+	if resp == nil {
+		return
+	}
+	users := map[string]string{}
+	channels := map[string]string{}
+	for i := range resp.Alerts {
+		a := &resp.Alerts[i]
+		if a.UserID != "" {
+			if username, ok := users[a.UserID]; ok {
+				a.Username = username
+			} else if user, err := c.App.GetUser(a.UserID); err == nil && user != nil {
+				a.Username = user.Username
+				users[a.UserID] = user.Username
+			}
+		}
+		if a.ChannelID != "" {
+			if channelName, ok := channels[a.ChannelID]; ok {
+				a.ChannelName = channelName
+			} else if channel, appErr := c.App.GetChannel(c.AppContext, a.ChannelID); appErr == nil && channel != nil {
+				a.ChannelName = channel.DisplayName
+				if a.ChannelName == "" {
+					a.ChannelName = channel.Name
+				}
+				channels[a.ChannelID] = a.ChannelName
+			}
+		}
 	}
 }
 

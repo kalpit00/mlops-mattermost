@@ -136,6 +136,20 @@ spec:
                   value: "0"
                 - name: MLOPS_LOCAL_ARTIFACTS_ROOT
                   value: /work/data/artifacts
+                - name: MLOPS_MONITOR_OUTPUT_DIR
+                  value: {{ .Values.data.pipelines.driftMonitor.outputDir | quote }}
+                - name: MLOPS_MONITOR_SYNC_S3
+                  value: {{ ternary "1" "0" .Values.data.pipelines.driftMonitor.syncFromS3 | quote }}
+                - name: MLOPS_MONITOR_UPLOAD_S3_PREFIX
+                  value: {{ .Values.data.pipelines.driftMonitor.uploadPrefix | quote }}
+                - name: MLOPS_PROMETHEUS_PUSHGATEWAY_URL
+                  value: {{ .Values.data.pipelines.driftMonitor.pushgatewayUrl | quote }}
+                - name: MLOPS_MONITOR_LIVE_FEATURES_JSONL
+                  value: /work/data/mlmoderation/logs/online_features_v1.jsonl
+                - name: MLOPS_MONITOR_LIVE_SCORES_JSONL
+                  value: /work/data/mlmoderation/logs/online_scores_v1.jsonl
+                - name: MLOPS_MONITOR_LIVE_FEEDBACK_JSONL
+                  value: /work/data/mlmoderation/feedback/moderation_feedback_v2.jsonl
                 - name: MLOPS_S3_ENDPOINT
                   value: {{ .Values.global.minioEndpoint | quote }}
                 - name: MLOPS_S3_BUCKET

@@ -6,7 +6,7 @@
 
 - `terraform/` — VM, FIP, volume, security group. Copy **`terraform/terraform.tfvars.example` → `terraform.tfvars`**, set **`keypair_name`**, then `init` / `plan` / `apply` (see [`terraform/README.md`](terraform/README.md). **`tf.env.example`** = lease metadata + optional `TF_VAR_*` exports).
 - `k8s/` — legacy/manual YAML fallback; see [`k8s/README.md`](k8s/README.md).
-- `helm/` — GitOps-ready Helm chart used by ArgoCD for platform, staging, canary, and production.
+- `helm/` — GitOps-ready Helm charts used by ArgoCD for platform, staging, canary, production, and observability.
 - `argocd/` — AppProject and Application resources for the Helm-based GitOps flow.
 - `scripts/` — `build-mlops-images.sh`, `bootstrap-k8s.sh`, `create-secrets.sh`, `create-mlops-data-secrets.sh`, `deploy-all.sh`, FIP helper, e2e.
 - `docs/` — [index](docs/README.md).
@@ -29,3 +29,4 @@
 **Horizon / lease how-to:** [docs/chameleon-runbook.md](docs/chameleon-runbook.md).  
 **Argo / GitOps:** [argocd/bootstrap/README.md](argocd/bootstrap/README.md).
 No Prometheus/Grafana stack in the default path; `bootstrap-k8s.sh` installs **metrics-server** only.
+Sprint 2 adds Prometheus/Grafana/Loki via [docs/OBSERVABILITY-SPRINT2-RUNBOOK.md](docs/OBSERVABILITY-SPRINT2-RUNBOOK.md).

@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-observability
+  namespace: argocd
+  labels:
+    mlops.layer: observability
+spec:
+  project: mlops
+  source:
+    repoURL: https://github.com/kalpit00/mlops-mattermost.git
+    targetRevision: master
+    path: infrastructure/helm/observability-stack
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

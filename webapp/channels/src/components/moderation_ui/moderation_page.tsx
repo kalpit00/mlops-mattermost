@@ -20,6 +20,8 @@ const REFRESH_INTERVAL_MS = 10000;
 // Default threshold matches server default (mlmoderation.DefaultAlertThreshold).
 const DEFAULT_THRESHOLD = 0.7;
 
+type ModerationTab = 'open' | 'reviewed';
+
 async function fetchAlerts(signal: AbortSignal): Promise<AlertsResponse> {
     const res = await fetch(`${Client4.getBaseRoute()}/mlmoderation/alerts`, {
         method: 'GET',
@@ -70,6 +72,7 @@ export default function ModerationPage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState<boolean>(false);
+    const [activeTab, setActiveTab] = useState<ModerationTab>('open');
 
     // We hold the currently selected post_id in a ref so the polling
     // refresher below does not need to close over it (would force a
@@ -120,9 +123,19 @@ export default function ModerationPage() {
         };
     }, [load]);
 
-    const selectedAlert = useMemo(() => {
-        return alerts.find((a) => a.post_id === selectedId) || null;
-    }, [alerts, selectedId]);
+    const openAlerts = useMemo(() => alerts.filter((a) => a.review_status === 'open'), [alerts]);
+    const reviewedAlerts = useMemo(() => alerts.filter((a) => a.review_status === 'reviewed'), [alerts]);
+    const visibleAlerts = activeTab === 'open' ? openAlerts : reviewedAlerts;
+    const visibleSelectedAlert = useMemo(() => {
+        return visibleAlerts.find((a) => a.post_id === selectedId) || null;
+    }, [selectedId, visibleAlerts]);
+
+    useEffect(() => {
+        if (visibleSelectedAlert || visibleAlerts.length === 0) {
+            return;
+        }
+        setSelectedId(visibleAlerts[0].post_id);
+    }, [visibleAlerts, visibleSelectedAlert]);
 
     const onSubmitDecision = useCallback(async (label: ModeratorLabel, action: ModeratorAction) => {
         if (!selectedId || submitting) {
@@ -152,6 +165,7 @@ export default function ModerationPage() {
                 moderator_label: label,
                 moderator_action: action,
             });
+            setSelectedId(null);
             setError(null);
         } catch (err) {
             // Roll back the optimistic update on failure.
@@ -224,13 +238,61 @@ export default function ModerationPage() {
                 </div>
             ) : (
                 <div className='layout'>
-                    <ModerationList
-                        alerts={alerts}
-                        selectedId={selectedId}
-                        onSelect={setSelectedId}
-                    />
+                    <section className='ModerationPage__queuePane'>
+                        <div className='ModerationPage__tabs'>
+                            <button
+                                type='button'
+                                className={activeTab === 'open' ? 'active' : ''}
+                                onClick={() => setActiveTab('open')}
+                            >
+                                <FormattedMessage
+                                    id='moderation_ui.tab_open'
+                                    defaultMessage='Open ({count})'
+                                    values={{count: openAlerts.length}}
+                                />
+                            </button>
+                            <button
+                                type='button'
+                                className={activeTab === 'reviewed' ? 'active' : ''}
+                                onClick={() => setActiveTab('reviewed')}
+                            >
+                                <FormattedMessage
+                                    id='moderation_ui.tab_reviewed'
+                                    defaultMessage='Reviewed ({count})'
+                                    values={{count: reviewedAlerts.length}}
+                                />
+                            </button>
+                        </div>
+                        <ModerationList
+                            alerts={visibleAlerts}
+                            selectedId={selectedId}
+                            title={activeTab === 'open' ? (
+                                <FormattedMessage
+                                    id='moderation_ui.list_title_open'
+                                    defaultMessage='Open Messages'
+                                />
+                            ) : (
+                                <FormattedMessage
+                                    id='moderation_ui.list_title_reviewed'
+                                    defaultMessage='Reviewed Messages'
+                                />
+                            )}
+                            emptyMessage={activeTab === 'open' ? (
+                                <FormattedMessage
+                                    id='moderation_ui.list_empty_open'
+                                    defaultMessage='No open alerts. Newly toxic messages will appear here.'
+                                />
+                            ) : (
+                                <FormattedMessage
+                                    id='moderation_ui.list_empty_reviewed'
+                                    defaultMessage='No reviewed alerts yet.'
+                                />
+                            )}
+                            onSelect={setSelectedId}
+                        />
+                    </section>
                     <ModerationDetail
-                        alert={selectedAlert}
+                        alert={visibleSelectedAlert}
                         threshold={threshold}
                         submitting={submitting}
                         onSubmit={onSubmitDecision}

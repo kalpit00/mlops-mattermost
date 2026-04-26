@@ -31,8 +31,10 @@ const MaxAlertScan = 5000
 type AlertRowV1 struct {
 	PostID        string  `json:"post_id"`
 	UserID        string  `json:"user_id,omitempty"`
+	Username      string  `json:"username,omitempty"`
 	UserHash      string  `json:"user_hash,omitempty"`
 	ChannelID     string  `json:"channel_id,omitempty"`
+	ChannelName   string  `json:"channel_name,omitempty"`
 	ChannelType   string  `json:"channel_type,omitempty"`
 	Text          string  `json:"text"`
 	Score         float64 `json:"score"`
@@ -131,9 +133,9 @@ func readJSONLReversed(path string, max int, fn func(raw []byte) bool) error {
 // ListAlerts joins the online feature/score/feedback JSONL logs into a
 // single []AlertRowV1, filters by threshold, and sorts by score descending.
 //
-// - threshold: scores below this value are dropped.
-// - limit: max alerts returned (after filter + sort). 0 = unlimited (capped
-//   by MaxAlertScan internally).
+//   - threshold: scores below this value are dropped.
+//   - limit: max alerts returned (after filter + sort). 0 = unlimited (capped
+//     by MaxAlertScan internally).
 //
 // Missing feature rows yield an alert with empty Text / UserHash. Missing
 // feedback rows yield ReviewStatus="open".
@@ -394,5 +396,6 @@ func RecordModerationUIDecision(postID, modelVersion, reviewerUserID, messageTex
 	if err := feedbackWriterV2Instance().Append(row); err != nil {
 		return "", err
 	}
+	ObserveFeedbackDecision(row.ModerationLabel, row.Action, row.Source)
 	return reviewedAt, nil
 }

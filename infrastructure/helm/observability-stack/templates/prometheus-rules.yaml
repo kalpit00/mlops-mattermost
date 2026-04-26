@@ -1,0 +1,65 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mlops-alerts
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: ml-serving
+      rules:
+        - alert: MLServingErrorsHigh
+          expr: sum(rate(ml_serving_score_requests_total{status!="ok"}[5m])) > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ML serving score errors observed"
+            description: "One or more /score requests failed in the last five minutes."
+        - alert: MLServingP95LatencyHigh
+          expr: histogram_quantile(0.95, sum(rate(ml_serving_score_duration_seconds_bucket[5m])) by (le, namespace)) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ML serving p95 latency is high"
+            description: "p95 score latency exceeded one second."
+    - name: mlmoderation
+      rules:
+        - alert: MLModerationInferenceUnavailable
+          expr: sum(rate(mlmoderation_inference_requests_total{result!="ok"}[5m])) > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Mattermost moderation inference fallback/errors observed"
+            description: "The Mattermost moderation path saw non-ok inference results."
+    - name: mlops-data
+      rules:
+        - alert: MLOpsDataDriftBreach
+          expr: max(mlops_monitor_any_breach) > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "MLOps data drift breach"
+            description: "The latest mlops-data monitoring run reported at least one drift breach."
+        - alert: MLOpsDataCronJobFailed
+          expr: max_over_time(kube_job_status_failed{namespace="mlops-data"}[1h]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "mlops-data job failure"
+            description: "A dataset or drift monitoring job failed in the last hour."
+    - name: infrastructure
+      rules:
+        - alert: PodRestartingFrequently
+          expr: increase(kube_pod_container_status_restarts_total{namespace=~"mattermost|mlops-serving|mlops-staging|mlops-canary|mlops-data|platform"}[15m]) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod restarting frequently"
+            description: "A core MLOps pod restarted more than twice in 15 minutes."

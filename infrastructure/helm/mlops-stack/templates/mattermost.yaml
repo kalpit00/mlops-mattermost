@@ -84,6 +84,8 @@ kind: Deployment
 metadata:
   name: mattermost
   namespace: {{ .Values.mattermost.namespace }}
+  labels:
+    app: mattermost
 spec:
   replicas: 1
   selector:

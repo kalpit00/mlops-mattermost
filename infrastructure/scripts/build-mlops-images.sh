@@ -8,18 +8,18 @@ cd "${ROOT}"
 
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
 
-echo "==> mattermost-mlops:local (webapp with moderation UI + server)"
-docker build -f server/build/Dockerfile.mlops -t mattermost-mlops:local .
+echo "==> mattermost-mlops:v5 (webapp with moderation UI + server metrics)"
+docker build -f server/build/Dockerfile.mlops -t kalpit00/mattermost-mlops:v5 .
 
-echo "==> mlops-serving:local (FastAPI /score + /health)"
-docker build -f Dockerfile.serving -t mlops-serving:local .
+echo "==> mlops-serving:v3 (FastAPI /score + /health + /metrics)"
+docker build -f Dockerfile.serving -t kalpit00/mlops-serving:v3 .
 
 echo "==> mlops-training:local (training.train)"
 docker build -f Dockerfile.training -t mlops-training:local .
 
 if [[ -d mlops_data/pipelines ]] && [[ -f mlops_data/pipelines/requirements.txt ]]; then
-  echo "==> mlops-pipelines:local (mlops_data.pipelines CLIs for CronJobs)"
-  docker build -f Dockerfile.pipelines -t mlops-pipelines:local .
+  echo "==> mlops-pipelines:v1 (mlops_data.pipelines CLIs for CronJobs + Pushgateway)"
+  docker build -f Dockerfile.pipelines -t kalpit00/mlops-pipelines:v1 .
 else
   echo "==> skip mlops-pipelines (mlops_data/pipelines not present; optional for Jupyter + CronJobs)"
 fi

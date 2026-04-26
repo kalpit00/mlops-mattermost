@@ -1,0 +1,100 @@
+kube-prometheus-stack:
+  fullnameOverride: kube-prometheus-stack
+  defaultRules:
+    create: true
+  grafana:
+    enabled: true
+    adminPassword: "admin"
+    service:
+      type: ClusterIP
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+      datasources:
+        enabled: true
+        defaultDatasourceEnabled: true
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://observability-loki:3100
+        isDefault: false
+  prometheus:
+    prometheusSpec:
+      retention: 7d
+      scrapeInterval: 15s
+      serviceMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorNamespaceSelector: {}
+      ruleSelectorNilUsesHelmValues: false
+      ruleNamespaceSelector: {}
+      resources:
+        requests:
+          cpu: 250m
+          memory: 1Gi
+        limits:
+          cpu: "1"
+          memory: 2Gi
+  alertmanager:
+    enabled: true
+    alertmanagerSpec:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+  kube-state-metrics:
+    enabled: true
+  prometheus-node-exporter:
+    enabled: true
+
+prometheus-pushgateway:
+  fullnameOverride: prometheus-pushgateway
+  service:
+    type: ClusterIP
+  serviceMonitor:
+    enabled: true
+    namespace: observability
+    additionalLabels:
+      release: kube-prometheus-stack
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+loki-stack:
+  fullnameOverride: observability
+  loki:
+    enabled: true
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 768Mi
+  promtail:
+    enabled: true
+    config:
+      clients:
+        - url: http://observability-loki:3100/loki/api/v1/push
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  grafana:
+    enabled: false
+  prometheus:
+    enabled: false

@@ -53,13 +53,18 @@ serving:
   namespace: mlops-serving
   name: ml-serving
   replicas: 1
-  image: kalpit00/mlops-serving:v2
+  image: kalpit00/mlops-serving:v3
   imagePullPolicy: IfNotPresent
   initImage: ghcr.io/mlflow/mlflow:v3.11.1-full
   modelName: tfidf_logreg
   modelAlias: production
   modelArtifactPath: tfidf_logreg_pipeline.joblib
   servingModelVersion: tfidf-logreg
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 70
   resources:
     requests:
       cpu: 100m
@@ -89,7 +94,7 @@ training:
 mattermost:
   enabled: false
   namespace: mattermost
-  image: kalpit00/mattermost-mlops:v4
+  image: kalpit00/mattermost-mlops:v5
   imagePullPolicy: IfNotPresent
   host: 129-114-27-105.nip.io
   siteUrl: http://129-114-27-105.nip.io
@@ -116,12 +121,16 @@ data:
   enabled: false
   namespace: mlops-data
   pipelines:
-    image: mlops-pipelines:local
+    image: kalpit00/mlops-pipelines:v1
     imagePullPolicy: IfNotPresent
     driftMonitor:
       enabled: true
       suspend: true
       schedule: "15 7 * * *"
+      syncFromS3: true
+      outputDir: /work/data/mlmoderation/monitoring
+      uploadPrefix: mlmoderation/monitoring
+      pushgatewayUrl: http://prometheus-pushgateway.observability.svc.cluster.local:9091
     datasetBuild:
       enabled: true
       suspend: true

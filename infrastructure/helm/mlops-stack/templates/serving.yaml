@@ -126,6 +126,8 @@ kind: Service
 metadata:
   name: {{ .Values.serving.name }}
   namespace: {{ .Values.serving.namespace }}
+  labels:
+    app: ml-serving
 spec:
   selector:
     app: ml-serving
@@ -134,4 +136,26 @@ spec:
       port: 8000
       targetPort: http
   type: ClusterIP
+{{- if .Values.serving.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.serving.name }}
+  namespace: {{ .Values.serving.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.serving.name }}
+  minReplicas: {{ .Values.serving.hpa.minReplicas }}
+  maxReplicas: {{ .Values.serving.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.serving.hpa.targetCPUUtilizationPercentage }}
+{{- end }}
 {{- end }}

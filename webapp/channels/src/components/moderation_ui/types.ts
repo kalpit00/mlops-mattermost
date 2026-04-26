@@ -13,8 +13,10 @@ export type ReviewStatus = 'open' | 'reviewed';
 export type ModerationAlert = {
     post_id: string;
     user_id?: string;
+    username?: string;
     user_hash?: string;
     channel_id?: string;
+    channel_name?: string;
     channel_type?: string;
     text: string;
     score: number;
