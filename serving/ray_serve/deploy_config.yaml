@@ -1,0 +1,8 @@
+proxy_location: EveryNode
+http_options:
+  host: 0.0.0.0
+  port: 8001
+applications:
+  - name: toxicity-app
+    route_prefix: /
+    import_path: serving.ray_serve.app:toxicity_app

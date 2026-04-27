@@ -1,30 +1,23 @@
-import os
-import time
-from typing import Any, Optional
+from __future__ import annotations
 
-import joblib
+import time
+
 from fastapi import FastAPI, HTTPException
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
-from pydantic import BaseModel, Field
 
+from .logging_utils import get_logger
+from .model_loader import ModelConfig, ModelLoader
+from .policy import PolicyConfig, map_score_to_action
+from .schemas import HealthResponse, ScoreRequest, ScoreResponse
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "/models/tfidf_logreg_pipeline.joblib").strip()
-
-
-class ScoreRequest(BaseModel):
-    text: str = Field(..., min_length=1)
-    channel_type: Optional[str] = None
-    prior_violation_count: Optional[int] = None
-
-
-class ScoreResponse(BaseModel):
-    toxicity_score: float
-    model_version: str
-
-
-app = FastAPI(title="Mattermost ML Moderation Inference", version="0.1.0")
+app = FastAPI(title="Mattermost ML Moderation Inference", version="0.2.0")
 Instrumentator().instrument(app).expose(app)
+
+logger = get_logger("serving.api")
+model_cfg = ModelConfig.from_env()
+policy_cfg = PolicyConfig.from_env()
+loader = ModelLoader(model_cfg)
 
 toxicity_score_histogram = Histogram(
     "ml_serving_toxicity_score",
@@ -35,7 +28,7 @@ toxicity_score_histogram = Histogram(
 predictions_total = Counter(
     "ml_serving_predictions_total",
     "Total predictions by predicted label and model version.",
-    ["label", "model_version"],
+    ["label", "policy_action", "model_version"],
 )
 score_requests_total = Counter(
     "ml_serving_score_requests_total",
@@ -49,43 +42,56 @@ score_duration_seconds = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5],
 )
 
-_pipeline: Any = None
-_model_version: str = "unknown"
-
 
 @app.on_event("startup")
-def _load_model() -> None:
-    global _pipeline, _model_version
-    if not os.path.exists(MODEL_PATH):
-        raise RuntimeError(f"MODEL_PATH does not exist: {MODEL_PATH}")
-    _pipeline = joblib.load(MODEL_PATH)
-    _model_version = os.environ.get("SERVING_MODEL_VERSION", "tfidf-logreg").strip() or "tfidf-logreg"
+def startup() -> None:
+    loader.load()
+    logger.info("model_loaded", extra={"extra": {"model_path": model_cfg.model_path, "model_version": model_cfg.model_version}})
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    return HealthResponse(
+        status="ok" if loader.is_loaded() else "degraded",
+        model_loaded=loader.is_loaded(),
+        model_version=loader.model_version,
+    )
+
+
+@app.get("/ready", response_model=HealthResponse)
+def ready() -> HealthResponse:
+    return health()
 
 
 @app.post("/score", response_model=ScoreResponse)
 def score(req: ScoreRequest) -> ScoreResponse:
     start = time.perf_counter()
-    if _pipeline is None:
-        score_requests_total.labels(status="model_not_loaded", model_version=_model_version).inc()
+
+    if not loader.is_loaded():
+        score_requests_total.labels(status="model_not_loaded", model_version=loader.model_version).inc()
         raise HTTPException(status_code=503, detail="model not loaded")
 
     try:
-        # Pipeline expects raw text input on the first step ("tfidf", ...).
-        proba = _pipeline.predict_proba([req.text])
-        if proba.shape[1] < 2:
-            score_requests_total.labels(status="bad_model_output", model_version=_model_version).inc()
-            raise HTTPException(status_code=500, detail="unexpected model output shape")
+        toxic_p = loader.score(req.text)
+        policy_action = map_score_to_action(toxic_p, policy_cfg)
+        label = "toxic" if toxic_p >= policy_cfg.review_threshold else "non_toxic"
 
-        toxic_p = float(proba[0, 1])
-        label = "toxic" if toxic_p >= 0.7 else "non_toxic"
-        toxicity_score_histogram.labels(model_version=_model_version).observe(toxic_p)
-        predictions_total.labels(label=label, model_version=_model_version).inc()
-        score_requests_total.labels(status="ok", model_version=_model_version).inc()
-        return ScoreResponse(toxicity_score=toxic_p, model_version=_model_version)
+        toxicity_score_histogram.labels(model_version=loader.model_version).observe(toxic_p)
+        predictions_total.labels(label=label, policy_action=policy_action, model_version=loader.model_version).inc()
+        score_requests_total.labels(status="ok", model_version=loader.model_version).inc()
+
+        return ScoreResponse(
+            toxicity_score=toxic_p,
+            model_version=loader.model_version,
+            policy_action=policy_action,
+            degraded=False,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        score_requests_total.labels(status="inference_error", model_version=loader.model_version).inc()
+        logger.error("inference_error", extra={"extra": {"error": str(exc)}})
+        # Graceful failure: explicit 503 lets Mattermost fallback path take over.
+        raise HTTPException(status_code=503, detail="inference unavailable")
     finally:
-        score_duration_seconds.labels(model_version=_model_version).observe(time.perf_counter() - start)
+        score_duration_seconds.labels(model_version=loader.model_version).observe(time.perf_counter() - start)

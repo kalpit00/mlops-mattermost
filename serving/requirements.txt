@@ -3,7 +3,8 @@ uvicorn[standard]==0.34.0
 pydantic==2.10.6
 prometheus-client==0.21.1
 prometheus-fastapi-instrumentator==7.1.0
-# Pin sklearn + joblib to exactly match training/requirements.txt so produced
-# joblibs load cleanly in serving. Bump both files together when upgrading.
 joblib==1.4.2
 scikit-learn==1.5.2
+ray[serve]==2.37.0
+httpx==0.28.1
+pytest==8.3.5
