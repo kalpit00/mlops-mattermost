@@ -7,7 +7,8 @@ This directory contains manifests for the open source service deployment:
 - Service definitions
 - Ingress definition
 - Persistent storage claim(s)
-- `mlmoderation` sidecar → mirrors JSONL/feedback to platform **MinIO** (`moderation-data` bucket)
+- `mlmoderation-log-uploader` sidecar → mirrors JSONL/feedback to platform **MinIO** (`moderation-data` bucket)
+- `mlmoderation-swift-uploader` sidecar → initializes Swift “folders” under `moderation-data/` + mirrors the same JSONL/feedback tree to **Chameleon Swift**
 
 ## ML moderation logs → MinIO
 
@@ -17,6 +18,28 @@ The server writes under the PVC:
 - `.../mlmoderation/feedback/moderation_feedback_v1.jsonl`, `moderation_feedback_v2.jsonl` (includes `text` + `user_hash`)
 
 The Deployment’s `mlmoderation-log-uploader` sidecar runs `mc mirror` to `s3://moderation-data/mlmoderation/...` (see `minio-secret` in this namespace). Verify: post in Mattermost, then check MinIO for new objects.
+
+## ML moderation logs → Swift (Chameleon)
+
+The Deployment also includes `mlmoderation-swift-uploader` (Python) which:
+
+- Creates marker objects to emulate the folder tree:
+  - `moderation-data/raw/jigsaw/.keep`
+  - `moderation-data/transformed/jigsaw/.keep`
+  - `moderation-data/nightly/.keep`
+  - `moderation-data/online_features/.keep`
+  - `moderation-data/datasets/.keep`
+  - `moderation-data/mlmoderation/.keep`
+- Periodically uploads files from the PVC path `/mattermost/data/mlmoderation/**` into Swift as:
+  - `moderation-data/mlmoderation/<relative-path>`
+
+Apply the ConfigMap once:
+
+```bash
+kubectl apply -f infrastructure/k8s/mattermost/mlmoderation-swift-sidecar-configmap.yaml
+```
+
+`mattermost-deployment.yaml` mounts `clouds.yaml` from a node `hostPath` (`/opt/mlops/clouds.yaml` by default). Update that path to match your VM layout.
 
 ## Share with teammates
 

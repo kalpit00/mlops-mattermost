@@ -526,6 +526,12 @@ func (b *S3FileBackend) WriteFileContext(ctx context.Context, fr io.Reader, path
 		return info.Size, errors.Wrapf(err, "unable write the data in the file %s", path)
 	}
 
+	// Best-effort, non-blocking replication to OpenStack Swift (school-project integration).
+	// Controlled via MM_SWIFT_REPLICATION_ENABLED=1 and related env vars.
+	if rep := getSwiftReplicator(b.client); rep != nil {
+		rep.enqueue(b.bucket, path, contentType)
+	}
+
 	return info.Size, nil
 }
 
@@ -584,6 +590,11 @@ func (b *S3FileBackend) AppendFile(fr io.Reader, path string) (int64, error) {
 	_, err = b.client.ComposeObject(ctx3, dstOpts, src1Opts, src2Opts)
 	if err != nil {
 		return 0, errors.Wrapf(err, "unable append the data in the file %s", path)
+	}
+
+	// Replicate the final composed object (not the temporary part object).
+	if rep := getSwiftReplicator(b.client); rep != nil {
+		rep.enqueue(b.bucket, fp, contentType)
 	}
 	return info.Size, nil
 }

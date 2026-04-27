@@ -1,0 +1,187 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlmoderation-swift-sidecar
+  namespace: mattermost
+data:
+  mlmoderation_swift_sidecar.py: |
+    """
+    Mattermost sidecar helper: initialize Swift "folders" + mirror mlmoderation logs to Swift.
+
+    This complements the existing `minio/mc` sidecar which mirrors to MinIO (S3).
+
+    Swift layout created (marker objects; Swift has no real directories):
+    - moderation-data/raw/jigsaw/.keep
+    - moderation-data/transformed/jigsaw/.keep
+    - moderation-data/nightly/.keep
+    - moderation-data/online_features/.keep
+    - moderation-data/datasets/.keep
+    - moderation-data/mlmoderation/.keep
+
+    Then every SYNC_INTERVAL_SEC seconds:
+    - Uploads files under /mattermost/data/mlmoderation to Swift keys:
+      moderation-data/mlmoderation/<relative-path>
+
+    Auth:
+    - Reads OpenStack clouds.yaml from SWIFT_CLOUDS_YAML_PATH (default: /etc/openstack/clouds.yaml)
+    - Uses cloud name SWIFT_CLOUD (default: openstack)
+
+    Env:
+    - SWIFT_CONTAINER (required)
+    - SWIFT_PREFIX (default: moderation-data)  # top-level prefix inside the Swift container
+    - SWIFT_INIT_ONLY (optional: "1" to create markers and exit)
+    """
+
+    from __future__ import annotations
+
+    import hashlib
+    import os
+    import sys
+    import time
+    from dataclasses import dataclass
+    from pathlib import Path
+
+
+    def env(name: str, default: str = "") -> str:
+        return os.environ.get(name, default).strip()
+
+
+    def env_int(name: str, default: int) -> int:
+        v = env(name)
+        if not v:
+            return default
+        return int(v)
+
+
+    def env_bool(name: str, default: bool = False) -> bool:
+        v = env(name).lower()
+        if not v:
+            return default
+        return v in ("1", "true", "yes", "on")
+
+
+    def sha256_file(path: Path) -> str:
+        h = hashlib.sha256()
+        with path.open("rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+
+    @dataclass
+    class SwiftConfig:
+        clouds_path: str
+        cloud: str
+        container: str
+        prefix: str
+
+
+    def connect_swift(cfg: SwiftConfig):
+        os.environ.setdefault("OS_CLIENT_CONFIG_FILE", cfg.clouds_path)
+        import openstack  # type: ignore
+
+        return openstack.connect(cloud=cfg.cloud)
+
+
+    def ensure_container(conn, container: str) -> None:
+        try:
+            conn.object_store.create_container(container)
+        except Exception:
+            # likely already exists
+            pass
+
+
+    def put_marker(conn, container: str, name: str) -> None:
+        # Swift doesn't have directories; empty objects act as folder markers.
+        try:
+            conn.create_object(container=container, name=name, data=b"")
+        except Exception:
+            # ignore races / duplicates
+            pass
+
+
+    def init_swift_tree(conn, container: str, prefix: str) -> None:
+        p = prefix.strip().strip("/")
+        markers = [
+            f"{p}/raw/jigsaw/.keep",
+            f"{p}/transformed/jigsaw/.keep",
+            f"{p}/nightly/.keep",
+            f"{p}/online_features/.keep",
+            f"{p}/datasets/.keep",
+            f"{p}/mlmoderation/.keep",
+        ]
+        for m in markers:
+            put_marker(conn, container, m)
+
+
+    def upload_if_changed(
+        conn,
+        *,
+        container: str,
+        key: str,
+        local_path: Path,
+        state: dict[str, str],
+    ) -> None:
+        digest = sha256_file(local_path)
+        if state.get(key) == digest:
+            return
+        conn.create_object(container=container, name=key, filename=str(local_path))
+        state[key] = digest
+
+
+    def mirror_tree(
+        conn,
+        *,
+        container: str,
+        root: Path,
+        dest_prefix: str,
+        state: dict[str, str],
+    ) -> None:
+        if not root.exists():
+            return
+        for p in root.rglob("*"):
+            if not p.is_file():
+                continue
+            rel = p.relative_to(root).as_posix()
+            key = f"{dest_prefix.strip().strip('/')}/{rel}"
+            upload_if_changed(conn, container=container, key=key, local_path=p, state=state)
+
+
+    def main() -> int:
+        cfg = SwiftConfig(
+            clouds_path=env("SWIFT_CLOUDS_YAML_PATH", "/etc/openstack/clouds.yaml"),
+            cloud=env("SWIFT_CLOUD", "openstack") or "openstack",
+            container=env("SWIFT_CONTAINER"),
+            prefix=env("SWIFT_PREFIX", "moderation-data") or "moderation-data",
+        )
+        if not cfg.container:
+            print("SWIFT_CONTAINER is required", file=sys.stderr)
+            return 2
+
+        interval = env_int("SYNC_INTERVAL_SEC", 60)
+        src = Path(env("MLOPS_LOCAL_MIRROR_ROOT", "/mattermost/data/mlmoderation"))
+
+        conn = connect_swift(cfg)
+        try:
+            ensure_container(conn, cfg.container)
+            init_swift_tree(conn, cfg.container, cfg.prefix)
+
+            if env_bool("SWIFT_INIT_ONLY", False):
+                print("Swift init complete (SWIFT_INIT_ONLY=1).")
+                return 0
+
+            state: dict[str, str] = {}
+            dest_prefix = f"{cfg.prefix.strip().strip('/')}/mlmoderation"
+            print(f"Swift mirror starting: {src} -> {cfg.container}/{dest_prefix}/")
+            while True:
+                mirror_tree(conn, container=cfg.container, root=src, dest_prefix=dest_prefix, state=state)
+                time.sleep(max(5, interval))
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+    if __name__ == "__main__":
+        raise SystemExit(main())

@@ -8,8 +8,8 @@ cd "${ROOT}"
 
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
 
-echo "==> mattermost-mlops:v5 (webapp with moderation UI + server metrics)"
-docker build -f server/build/Dockerfile.mlops -t kalpit00/mattermost-mlops:v5 .
+echo "==> mattermost-mlops:v6 (webapp with moderation UI + server metrics)"
+docker build -f server/build/Dockerfile.mlops -t kalpit00/mattermost-mlops:v6 .
 
 echo "==> mlops-serving:v3 (FastAPI /score + /health + /metrics)"
 docker build -f Dockerfile.serving -t kalpit00/mlops-serving:v3 .

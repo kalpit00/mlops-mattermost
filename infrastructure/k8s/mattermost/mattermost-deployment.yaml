@@ -75,6 +75,18 @@ spec:
             # TF‑IDF + LogReg inference can be slower than the Go default (150ms); give it room on-cluster.
             - name: MM_MLMODERATION_INFERENCE_TIMEOUT_MS
               value: "2000"
+            # Optional: replicate uploaded attachments from MinIO to Chameleon Swift (Objstore_proj17).
+            # Requires clouds.yaml to be available inside the container at MM_SWIFT_CLOUDS_YAML_PATH.
+            - name: MM_SWIFT_REPLICATION_ENABLED
+              value: "true"
+            - name: MM_SWIFT_CONTAINER
+              value: "Objstore_proj17"
+            - name: MM_SWIFT_CLOUD
+              value: "openstack"
+            - name: MM_SWIFT_CLOUDS_YAML_PATH
+              value: "/mattermost/config/clouds.yaml"
+            - name: MM_SWIFT_PREFIX
+              value: "mattermost"
           resources:
             requests:
               cpu: "200m"
@@ -92,6 +104,8 @@ spec:
           volumeMounts:
             - name: mattermost-data
               mountPath: /mattermost/data
+            - name: swift-clouds
+              mountPath: /mattermost/config/clouds.yaml
         - name: mlmoderation-log-uploader
           # Sidecar: periodically uploads ML moderation logs from the PVC to platform MinIO.
           # Requires a Secret named `minio-secret` in the `mattermost` namespace with keys:
@@ -134,7 +148,55 @@ spec:
           volumeMounts:
             - name: mattermost-data
               mountPath: /mattermost/data
+        - name: mlmoderation-swift-uploader
+          # Sidecar: initialize Swift "folders" + mirror mlmoderation logs to Chameleon Swift.
+          # Requires `clouds.yaml` mounted at SWIFT_CLOUDS_YAML_PATH (see volume swift-clouds).
+          # Apply ConfigMap: infrastructure/k8s/mattermost/mlmoderation-swift-sidecar-configmap.yaml
+          image: python:3.11-slim-bookworm
+          env:
+            - name: SWIFT_CONTAINER
+              value: "Objstore_proj17"
+            - name: SWIFT_PREFIX
+              value: "moderation-data"
+            - name: SWIFT_CLOUD
+              value: "openstack"
+            - name: SWIFT_CLOUDS_YAML_PATH
+              value: "/mattermost/config/clouds.yaml"
+            - name: MLOPS_LOCAL_MIRROR_ROOT
+              value: "/mattermost/data/mlmoderation"
+            - name: SYNC_INTERVAL_SEC
+              value: "60"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              python -m pip install --no-cache-dir "openstacksdk>=4.0.0"
+              exec python /scripts/mlmoderation_swift_sidecar.py
+          volumeMounts:
+            - name: mattermost-data
+              mountPath: /mattermost/data
+            - name: swift-clouds
+              mountPath: /mattermost/config/clouds.yaml
+            - name: mlmoderation-swift-sidecar-script
+              mountPath: /scripts
+              readOnly: true
       volumes:
         - name: mattermost-data
           persistentVolumeClaim:
             claimName: mattermost-data-pvc
+        - name: swift-clouds
+          hostPath:
+            # Update this path on the node to wherever you placed clouds.yaml.
+            path: /opt/mlops/clouds.yaml
+            type: File
+        - name: mlmoderation-swift-sidecar-script
+          configMap:
+            name: mlmoderation-swift-sidecar
+            defaultMode: 0555

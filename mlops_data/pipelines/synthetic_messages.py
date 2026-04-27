@@ -45,6 +45,8 @@ from typing import Any, Literal, Optional
 import numpy as np
 import pandas as pd
 
+from mlops_data.pipelines.swift_sink import swift_upload_file
+
 DeliveryMode = Literal["artifact", "http", "both"]
 
 
@@ -695,6 +697,10 @@ def run_synthetic_message_generator(
                 key = f"{prefix}/{name}"
                 s3_client.upload_file(str(local_path), cfg.bucket, key)
                 s3_keys.append(key)
+                try:
+                    swift_upload_file(local_path=local_path, object_name=key)
+                except Exception:
+                    pass
             if cfg.write_jsonl and jm is not None and jl is not None:
                 for local_path, name in (
                     (jm, "messages.jsonl"),
@@ -703,10 +709,18 @@ def run_synthetic_message_generator(
                     key = f"{prefix}/{name}"
                     s3_client.upload_file(str(local_path), cfg.bucket, key)
                     s3_keys.append(key)
+                    try:
+                        swift_upload_file(local_path=local_path, object_name=key)
+                    except Exception:
+                        pass
             if cfg.write_combined_labeled_copy and combined_paths:
                 key = f"{prefix}/labeled_messages.parquet"
                 s3_client.upload_file(str(combined_paths[-1]), cfg.bucket, key)
                 s3_keys.append(key)
+                try:
+                    swift_upload_file(local_path=combined_paths[-1], object_name=key)
+                except Exception:
+                    pass
 
     return SyntheticGeneratorResult(
         total_messages=len(df_msg),

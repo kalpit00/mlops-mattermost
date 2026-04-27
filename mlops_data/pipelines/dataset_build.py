@@ -36,6 +36,8 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from mlops_data.pipelines.swift_sink import swift_upload_file
+
 # Columns that must never appear in exported training features (inference / scores).
 INFERENCE_LEAKAGE_COLUMNS = frozenset(
     {
@@ -980,6 +982,18 @@ def run_dataset_build(
         )
         manifest["s3_output_keys"] = s3_keys
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    # Optional: also upload the built dataset artifacts to Swift (Chameleon), mirroring keys.
+    # Best-effort; does not block the build.
+    try:
+        swift_upload_file(local_path=train_path, object_name=f"datasets/{dataset_date}/train.parquet")
+        swift_upload_file(local_path=val_path, object_name=f"datasets/{dataset_date}/val.parquet")
+        swift_upload_file(local_path=eval_path, object_name=f"datasets/{dataset_date}/eval.parquet")
+        swift_upload_file(local_path=manifest_path, object_name=f"datasets/{dataset_date}/manifest.json")
+        swift_upload_file(local_path=quality_path, object_name=f"datasets/{dataset_date}/quality_report.json")
+        swift_upload_file(local_path=lineage_path, object_name=f"datasets/{dataset_date}/training_lineage.json")
+    except Exception:
+        pass
 
     return DatasetBuildResult(
         train_path=train_path,

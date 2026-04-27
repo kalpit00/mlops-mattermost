@@ -94,7 +94,7 @@ training:
 mattermost:
   enabled: false
   namespace: mattermost
-  image: kalpit00/mattermost-mlops:v5
+  image: kalpit00/mattermost-mlops:v6
   imagePullPolicy: IfNotPresent
   host: 129-114-27-105.nip.io
   siteUrl: http://129-114-27-105.nip.io

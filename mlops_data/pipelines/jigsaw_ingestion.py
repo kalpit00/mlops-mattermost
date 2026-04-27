@@ -41,6 +41,8 @@ from typing import Any, Optional
 import pandas as pd
 from pandas.api import types as pdt
 
+from mlops_data.pipelines.swift_sink import swift_upload_file
+
 TOXIC_COLUMNS = [
     "toxic",
     "severe_toxic",
@@ -412,6 +414,18 @@ def run_jigsaw_ingestion(
             json.dumps(manifest, indent=2).encode("utf-8"),
             "application/json",
         )
+
+    # Optional: also upload to Swift (Chameleon) mirroring MinIO keys.
+    # This is best-effort and controlled by MLOPS_SWIFT_ENABLED=1.
+    try:
+        swift_upload_file(local_path=cfg.local_raw_dir / "train.csv", object_name=raw_keys[0])
+        swift_upload_file(local_path=cfg.local_raw_dir / "test.csv", object_name=raw_keys[1])
+        swift_upload_file(local_path=cfg.local_raw_dir / "test_labels.csv", object_name=raw_keys[2])
+        swift_upload_file(local_path=cfg.local_parquet_path, object_name=parquet_key)
+        swift_upload_file(local_path=cfg.local_manifest_path, object_name=manifest_key)
+    except Exception:
+        # Keep ingestion resilient; Swift is an optional sink.
+        pass
 
     return JigsawIngestionResult(
         row_count=len(comments_binary_df),

@@ -17,7 +17,7 @@ training:
 mattermost:
   enabled: true
   namespace: mattermost
-  image: kalpit00/mattermost-mlops:v5
+  image: kalpit00/mattermost-mlops:v6
   host: 129-114-27-105.nip.io
   siteUrl: http://129-114-27-105.nip.io
   inferenceUrl: http://ml-serving.mlops-serving.svc.cluster.local:8000/score
