@@ -63,16 +63,17 @@ Then continue with Terraform below.
     terraform output -raw floating_ip
     ```
 
-3. **If the floating IP changed** (new IP vs what is encoded in nip.io hostnames and examples), update the repo **before** Phase 2 so ingress URLs and `.env.example` patterns stay consistent:
+**Optional** - **If the floating IP changed** (new IP vs what is encoded in nip.io hostnames and examples), update the repo **before** Phase 2 so ingress URLs and `.env.example` patterns stay consistent:
 
     ```bash
     # From repository root (not inside terraform/)
     ./infrastructure/scripts/set-floating-ip-in-manifests.sh <NEW_FLOAT_IP> [<OLD_FLOAT_IP>]
     ```
 
-The helper script replaces the dotted IP across Helm values, ingress manifests, and `infrastructure/.env.example`. If you omit the old IP, the script uses its documented default—override with the second argument if your previous IP was different. Please note - this script means the graders might need to require push access as the change would only be made locally. ArgoCD is implemented to watch the main repo `https://github.com/kalpit00/mlops-mattermost.git`.
+The helper script replaces the dotted IP across Helm values, ingress manifests, and `infrastructure/.env.example`. If you omit the old IP, the script uses its documented default—override with the second argument if your previous IP was different.
+Please note - running this script means the graders might need to require push access as the change would only be made locally. ArgoCD is implemented to watch the main repo `https://github.com/kalpit00/mlops-mattermost.git`.
 
-4. **SSH to the VM** (after your public key is on the instance):
+3. **SSH to the VM** (after your public key is on the instance):
 
     ```bash
     ssh -i ~/.ssh/<your-key> cc@<FLOATING_IP>
@@ -101,11 +102,16 @@ sudo bash infrastructure/scripts/install-chameleon-dev-tools.sh
 bash infrastructure/scripts/bootstrap-k8s.sh
 ```
 
-**Tooling sanity check (`deploy-gitops-stack.sh`):** That script requires **`kubectl`**, **`helm`**, and **`python3`** on the VM. `bootstrap-k8s.sh` installs **K3s** (which provides `kubectl`) and **Helm 3** if it is missing. **`python3`** is used for a small JSON patch when configuring Argo CD; **CC-Ubuntu** images normally already ship it (e.g. for cloud-init). **Node.js / npm** are **not** used on this path. If `python3 --version` fails on an unusual image, install it with `sudo apt-get install -y python3` before running the deploy script.
+**Tooling sanity check (before `deploy-gitops-stack.sh`):** That script requires **`kubectl`**, **`helm`**, and **`python3`** on the VM. `bootstrap-k8s.sh` installs **K3s** (which provides `kubectl`) and **Helm 3** if it is missing. If kubectl can't find the cluster or python3 isn't installed, run these.
+
+```bash
+export KUBECONFIG=~/.kube/config
+sudo apt-get install -y python3
+```
 
 **Environment and secrets**
 
-1. Rename the example env file and optionally edit values (We leave this as an option to demonstrate secrets are managed cleanly and the actual credentials are not public - all credentials in this file will be used to login to the services). If you ran `set-floating-ip-in-manifests.sh` in Phase 1, `infrastructure/.env.example` in the tree should already match the current IP — still copy it and set secrets.
+1. Rename the example env file and optionally edit values (We leave this as an option to demonstrate secrets are managed cleanly and the actual credentials are not public - all credentials in this file will be used to login to the services). If you ran `set-floating-ip-in-manifests.sh` in Phase 1, `infrastructure/.env.example` in the tree should already match the current IP — still copy it.
 
     ```bash
     cp infrastructure/.env.example infrastructure/.env
@@ -121,11 +127,26 @@ bash infrastructure/scripts/bootstrap-k8s.sh
 This is the all-important script. It expects `infrastructure/.env` to exist. That is why, in step 1, we provided an example file `infrastructure/.env.example` with base credentials. These can be manually edited to stronger credentials, or alternatively an `infrastructure/.env` can be copied onto the VM via `scp`.
 The `deploy-gitops-stack.sh` script invokes `create-secrets.sh` and `create-mlops-data-secrets.sh` as part of the flow.
 
-**Verification (high level)**
+**Verification**
 
-- `kubectl get nodes`, `kubectl get pods -A`
-- Argo CD UI at the `ARGOCD_HOST` you set (HTTP demo URL pattern in `.env.example`)
-- Application ingresses per the nip.io hosts in your `.env`
+**Cluster health:** to confirm the node is Ready and workloads are running.
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+```
+
+- **Demo URLs** (click the URL; after `set-floating-ip-in-manifests.sh` / `.env.example` match this floating IP, replace the host in your own deployment if it differs):
+    - Mattermost : [http://129-114-27-105.nip.io](http://129-114-27-105.nip.io)
+    - MLflow : [http://mlflow.129-114-27-105.nip.io](http://mlflow.129-114-27-105.nip.io)
+    - MinIO : [http://minio.129-114-27-105.nip.io](http://minio.129-114-27-105.nip.io)
+    - Grafana : [http://grafana.129-114-27-105.nip.io](http://grafana.129-114-27-105.nip.io)
+    - Prometheus : [http://prometheus.129-114-27-105.nip.io](http://prometheus.129-114-27-105.nip.io)
+    - Argo CD : [http://argocd.129-114-27-105.nip.io](http://argocd.129-114-27-105.nip.io)
+    - Alertmanager : [http://alertmanager.129-114-27-105.nip.io](http://alertmanager.129-114-27-105.nip.io)
+    - Loki (ready check) : [http://loki.129-114-27-105.nip.io/ready](http://loki.129-114-27-105.nip.io/ready)
+    - Pushgateway : [http://pushgateway.129-114-27-105.nip.io](http://pushgateway.129-114-27-105.nip.io)
+    - Jupyter : [http://data-jupyter.129-114-27-105.nip.io](http://data-jupyter.129-114-27-105.nip.io)
 
 ---
 
@@ -140,12 +161,12 @@ The `deploy-gitops-stack.sh` script invokes `create-secrets.sh` and `create-mlop
 
 ## Quick reference
 
-| Artifact                      | Location / command                                                                                        |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Terraform template            | `infrastructure/terraform/terraform.tfvars.example` → copy to `infrastructure/terraform/terraform.tfvars` |
-| Terraform init / plan / apply | `terraform init` → `terraform plan` → `terraform apply`                                                   |
-| Floating IP output            | `terraform output -raw floating_ip`                                                                       |
-| FIP → manifests / examples    | `./infrastructure/scripts/set-floating-ip-in-manifests.sh`                                                |
-| VM bootstrap                  | `infrastructure/scripts/install-chameleon-dev-tools.sh`, `infrastructure/scripts/bootstrap-k8s.sh`        |
-| Secrets template              | `infrastructure/.env.example` → copy to `infrastructure/.env`                                             |
-| GitOps bring-up               | `bash infrastructure/scripts/deploy-gitops-stack.sh`                                                      |
+| Artifact                      | Location / command                                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Terraform template            | `infrastructure/terraform/terraform.tfvars.example` → copy to `infrastructure/terraform/terraform.tfvars`                             |
+| Terraform init / plan / apply | `terraform init` → `terraform plan` → `terraform apply`                                                                               |
+| Floating IP output            | `terraform output -raw floating_ip`                                                                                                   |
+| FIP → manifests / examples    | `./infrastructure/scripts/set-floating-ip-in-manifests.sh`                                                                            |
+| VM bootstrap                  | `infrastructure/scripts/install-chameleon-dev-tools.sh`, `infrastructure/scripts/bootstrap-k8s.sh`, `sudo apt-get install -y python3` |
+| Secrets template              | `infrastructure/.env.example` → copy to `infrastructure/.env`                                                                         |
+| GitOps bring-up               | `bash infrastructure/scripts/deploy-gitops-stack.sh`                                                                                  |
