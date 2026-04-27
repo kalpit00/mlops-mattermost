@@ -137,6 +137,7 @@ kubectl get pods -A
 ```
 
 - **Demo URLs** (click the URL; after `set-floating-ip-in-manifests.sh` / `.env.example` match this floating IP, replace the host in your own deployment if it differs):
+- The demo credentials are in `infrastructure/.env.example`
     - Mattermost : [http://129-114-27-105.nip.io](http://129-114-27-105.nip.io)
     - MLflow : [http://mlflow.129-114-27-105.nip.io](http://mlflow.129-114-27-105.nip.io)
     - MinIO : [http://minio.129-114-27-105.nip.io](http://minio.129-114-27-105.nip.io)
