@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ray import serve
+from starlette.requests import Request
 
 from serving.app.model_loader import ModelConfig, ModelLoader
 from serving.app.policy import PolicyConfig, map_score_to_action
@@ -15,7 +16,9 @@ class ToxicityModel:
         self.loader = ModelLoader(self.model_cfg)
         self.loader.load()
 
-    async def __call__(self, req: ScoreRequest) -> ScoreResponse:
+    async def __call__(self, request: Request) -> ScoreResponse:
+        body = await request.json()
+        req = ScoreRequest.model_validate(body)
         score = self.loader.score(req.text)
         action = map_score_to_action(score, self.policy_cfg)
         return ScoreResponse(
