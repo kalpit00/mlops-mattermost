@@ -13,7 +13,7 @@ serving:
 servingRay:
   enabled: true
   namespace: mlops-serving
-  image: kalpit00/mlops-serving:v4
+  image: kalpit00/mlops-serving:v5
   imagePullPolicy: Always
   modelAlias: production
   servingModelVersion: tfidf-logreg-production
