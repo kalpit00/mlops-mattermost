@@ -1,7 +1,7 @@
 serving:
   enabled: true
   namespace: mlops-serving
-  image: kalpit00/mlops-serving:v3
+  image: kalpit00/mlops-serving:v7
   modelAlias: production
   servingModelVersion: tfidf-logreg-production
   hpa:

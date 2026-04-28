@@ -90,6 +90,8 @@ spec:
               value: /models/tfidf_logreg_pipeline.joblib
             - name: SERVING_MODEL_VERSION
               value: {{ .Values.serving.servingModelVersion | quote }}
+            - name: INFERENCE_EVENTS_LOG_PATH
+              value: /tmp/inference_events.jsonl
           command:
             - uvicorn
             - app.main:app
