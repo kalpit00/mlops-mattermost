@@ -8,7 +8,7 @@ import {Client4} from 'mattermost-redux/client';
 
 import ModerationDetail from './moderation_detail';
 import ModerationList from './moderation_list';
-import type {AlertsResponse, DecisionRequest, ModerationAlert, ModeratorAction, ModeratorLabel} from './types';
+import type {AlertsResponse, DecisionRequest, MessageTypeFilter, ModerationAlert, ModeratorAction, ModeratorLabel} from './types';
 
 import './moderation_page.scss';
 
@@ -21,9 +21,11 @@ const REFRESH_INTERVAL_MS = 10000;
 const DEFAULT_THRESHOLD = 0.7;
 
 type ModerationTab = 'open' | 'reviewed';
+type MessageTab = MessageTypeFilter;
 
-async function fetchAlerts(signal: AbortSignal): Promise<AlertsResponse> {
-    const res = await fetch(`${Client4.getBaseRoute()}/mlmoderation/alerts`, {
+async function fetchAlerts(signal: AbortSignal, messageType: MessageTypeFilter): Promise<AlertsResponse> {
+    const query = new URLSearchParams({message_type: messageType});
+    const res = await fetch(`${Client4.getBaseRoute()}/mlmoderation/alerts?${query.toString()}`, {
         method: 'GET',
         credentials: 'include',
         headers: {Accept: 'application/json'},
@@ -73,6 +75,7 @@ export default function ModerationPage() {
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [activeTab, setActiveTab] = useState<ModerationTab>('open');
+    const [activeMessageTab, setActiveMessageTab] = useState<MessageTab>('toxic');
 
     // We hold the currently selected post_id in a ref so the polling
     // refresher below does not need to close over it (would force a
@@ -82,7 +85,7 @@ export default function ModerationPage() {
 
     const load = useCallback(async (signal: AbortSignal) => {
         try {
-            const data = await fetchAlerts(signal);
+            const data = await fetchAlerts(signal, activeMessageTab);
             if (signal.aborted) {
                 return;
             }
@@ -103,13 +106,18 @@ export default function ModerationPage() {
             if ((err as {name?: string})?.name === 'AbortError') {
                 return;
             }
-            setError((err as Error).message || 'Failed to load alerts');
+            const message = (err as Error).message || 'Failed to load alerts';
+            if (message.includes('HTTP 403')) {
+                setError('You are not authorized to view these moderation messages.');
+            } else {
+                setError(message);
+            }
         } finally {
             if (!signal.aborted) {
                 setLoading(false);
             }
         }
-    }, []);
+    }, [activeMessageTab]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -181,7 +189,12 @@ export default function ModerationPage() {
                     reviewed_at: undefined,
                 };
             }));
-            setError((err as Error).message || 'Failed to record decision');
+            const message = (err as Error).message || 'Failed to record decision';
+            if (message.includes('HTTP 403')) {
+                setError('You can only moderate messages you are allowed to review.');
+            } else {
+                setError(message);
+            }
         } finally {
             setSubmitting(false);
         }
@@ -240,6 +253,38 @@ export default function ModerationPage() {
                 <div className='layout'>
                     <section className='ModerationPage__queuePane'>
                         <div className='ModerationPage__tabs'>
+                            <button
+                                type='button'
+                                className={activeMessageTab === 'toxic' ? 'active' : ''}
+                                onClick={() => setActiveMessageTab('toxic')}
+                            >
+                                <FormattedMessage
+                                    id='moderation_ui.tab_toxic'
+                                    defaultMessage='Toxic'
+                                />
+                            </button>
+                            <button
+                                type='button'
+                                className={activeMessageTab === 'non_toxic' ? 'active' : ''}
+                                onClick={() => setActiveMessageTab('non_toxic')}
+                            >
+                                <FormattedMessage
+                                    id='moderation_ui.tab_non_toxic'
+                                    defaultMessage='Non-toxic'
+                                />
+                            </button>
+                            <button
+                                type='button'
+                                className={activeMessageTab === 'all' ? 'active' : ''}
+                                onClick={() => setActiveMessageTab('all')}
+                            >
+                                <FormattedMessage
+                                    id='moderation_ui.tab_all_messages'
+                                    defaultMessage='All Messages'
+                                />
+                            </button>
+                        </div>
+                        <div className='ModerationPage__tabs ModerationPage__tabs--secondary'>
                             <button
                                 type='button'
                                 className={activeTab === 'open' ? 'active' : ''}

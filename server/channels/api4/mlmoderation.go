@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
@@ -33,6 +34,12 @@ func (api *API) InitMLModeration() {
 // sorted by toxicity score descending and include review status so the
 // UI can render "open" vs "reviewed" without a second roundtrip.
 func getMLModerationAlerts(c *Context, w http.ResponseWriter, r *http.Request) {
+	session := c.AppContext.Session()
+	if session == nil {
+		c.Err = model.NewAppError("Api4.getMLModerationAlerts", "api.context.session_expired.app_error", nil, "", http.StatusUnauthorized)
+		return
+	}
+
 	q := r.URL.Query()
 
 	threshold := mlmoderation.AlertThresholdFromEnv()
@@ -54,7 +61,13 @@ func getMLModerationAlerts(c *Context, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := mlmoderation.ListAlerts(threshold, limit)
+	messageType := parseMessageTypeFilter(q.Get("message_type"))
+	requestingUserID := ""
+	if !c.App.SessionHasPermissionTo(*session, model.PermissionManageSystem) {
+		requestingUserID = session.UserId
+	}
+
+	resp, err := mlmoderation.ListAlerts(threshold, limit, messageType, requestingUserID)
 	if err != nil {
 		mlmoderation.ObserveAlertsList("error")
 		c.Err = model.NewAppError("Api4.getMLModerationAlerts", "api.mlmoderation.list_alerts.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
@@ -135,6 +148,12 @@ type moderationDecisionResponse struct {
 // enforced here — that's intentional; enforcement is out of scope for
 // this project.
 func submitMLModerationDecision(c *Context, w http.ResponseWriter, r *http.Request) {
+	session := c.AppContext.Session()
+	if session == nil {
+		c.Err = model.NewAppError("Api4.submitMLModerationDecision", "api.context.session_expired.app_error", nil, "", http.StatusUnauthorized)
+		return
+	}
+
 	var req moderationDecisionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		c.SetInvalidParamWithErr("body", err)
@@ -156,10 +175,15 @@ func submitMLModerationDecision(c *Context, w http.ResponseWriter, r *http.Reque
 	// Best-effort enrichment: pull text + user_hash from the online features
 	// log so the feedback row is usable as a training example. Missing log
 	// rows are not fatal — we still record the label/action.
-	text, userHash, _ := mlmoderation.LookupFeatureForPost(req.PostID)
+	text, userHash, targetUserID, _ := mlmoderation.LookupFeatureMetaForPost(req.PostID)
 	_, modelVersion, _ := mlmoderation.LookupLatestScoreForPost(req.PostID)
 
-	reviewerUserID := c.AppContext.Session().UserId
+	reviewerUserID := session.UserId
+	isAdmin := c.App.SessionHasPermissionTo(*session, model.PermissionManageSystem)
+	if !isAdmin && targetUserID != "" && targetUserID != reviewerUserID {
+		c.SetPermissionError(model.PermissionEditOtherUsers)
+		return
+	}
 
 	reviewedAt, err := mlmoderation.RecordModerationUIDecision(
 		req.PostID,
@@ -188,5 +212,18 @@ func submitMLModerationDecision(c *Context, w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusCreated)
 	if _, wErr := w.Write(jsonData); wErr != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(wErr))
+	}
+}
+
+func parseMessageTypeFilter(raw string) mlmoderation.MessageTypeFilter {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case string(mlmoderation.MessageTypeNonToxic):
+		return mlmoderation.MessageTypeNonToxic
+	case string(mlmoderation.MessageTypeAll):
+		return mlmoderation.MessageTypeAll
+	case string(mlmoderation.MessageTypeToxic):
+		fallthrough
+	default:
+		return mlmoderation.MessageTypeToxic
 	}
 }

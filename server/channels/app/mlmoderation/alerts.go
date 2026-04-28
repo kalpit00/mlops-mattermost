@@ -57,6 +57,14 @@ type AlertsResponse struct {
 	Alerts       []AlertRowV1 `json:"alerts"`
 }
 
+type MessageTypeFilter string
+
+const (
+	MessageTypeToxic    MessageTypeFilter = "toxic"
+	MessageTypeNonToxic MessageTypeFilter = "non_toxic"
+	MessageTypeAll      MessageTypeFilter = "all"
+)
+
 // Paths the mlmoderation package writes to. Exposed so API handlers can
 // read them back without duplicating env-var logic.
 func onlineLogDir() string {
@@ -139,7 +147,7 @@ func readJSONLReversed(path string, max int, fn func(raw []byte) bool) error {
 //
 // Missing feature rows yield an alert with empty Text / UserHash. Missing
 // feedback rows yield ReviewStatus="open".
-func ListAlerts(threshold float64, limit int) (AlertsResponse, error) {
+func ListAlerts(threshold float64, limit int, messageType MessageTypeFilter, requestingUserID string) (AlertsResponse, error) {
 	resp := AlertsResponse{
 		Threshold: threshold,
 		Alerts:    []AlertRowV1{},
@@ -253,14 +261,15 @@ func ListAlerts(threshold float64, limit int) (AlertsResponse, error) {
 	// 4) Join + filter by threshold.
 	alerts := make([]AlertRowV1, 0, len(scores))
 	for postID, s := range scores {
-		if s.Score < threshold {
+		modelDecision := ModelDecisionFor(s.Score, threshold)
+		if !includeForMessageType(modelDecision, messageType) {
 			continue
 		}
 		a := AlertRowV1{
 			PostID:        postID,
 			Score:         s.Score,
 			ModelVersion:  s.ModelVersion,
-			ModelDecision: ModelDecisionFor(s.Score, threshold),
+			ModelDecision: modelDecision,
 			ScoredAt:      s.ScoredAt,
 			ReviewStatus:  "open",
 		}
@@ -278,6 +287,9 @@ func ListAlerts(threshold float64, limit int) (AlertsResponse, error) {
 			a.ReviewedAt = r.ReviewedAt
 			a.ReviewerUserID = r.ReviewerID
 		}
+		if requestingUserID != "" && a.UserID != requestingUserID {
+			continue
+		}
 		alerts = append(alerts, a)
 	}
 
@@ -294,6 +306,19 @@ func ListAlerts(threshold float64, limit int) (AlertsResponse, error) {
 	}
 	resp.Alerts = alerts
 	return resp, nil
+}
+
+func includeForMessageType(modelDecision string, messageType MessageTypeFilter) bool {
+	switch messageType {
+	case MessageTypeNonToxic:
+		return modelDecision == string(MessageTypeNonToxic)
+	case MessageTypeAll:
+		return true
+	case MessageTypeToxic:
+		fallthrough
+	default:
+		return modelDecision == string(MessageTypeToxic)
+	}
 }
 
 // LookupFeatureForPost returns the most recent cached feature row for a
@@ -322,6 +347,32 @@ func LookupFeatureForPost(postID string) (text, userHash string, ok bool) {
 		return false
 	})
 	return text, userHash, found
+}
+
+func LookupFeatureMetaForPost(postID string) (text, userHash, userID string, ok bool) {
+	if postID == "" {
+		return "", "", "", false
+	}
+	dir := onlineLogDir()
+	if dir == "" {
+		dir = "data/mlmoderation/logs"
+	}
+	found := false
+	_ = readJSONLReversed(filepath.Join(dir, "online_features_v1.jsonl"), MaxAlertScan, func(raw []byte) bool {
+		var row FeatureRowV1
+		if err := json.Unmarshal(raw, &row); err != nil {
+			return true
+		}
+		if row.PostID != postID {
+			return true
+		}
+		text = row.Text
+		userHash = row.UserHash
+		userID = row.UserID
+		found = true
+		return false
+	})
+	return text, userHash, userID, found
 }
 
 // LookupLatestScoreForPost returns the most recent score + model version
