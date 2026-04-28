@@ -95,6 +95,15 @@ spec:
           args:
             - |
               set -e
+              # #region agent log
+              echo "[agent-debug][a67a30][H1] starting ray container diagnostics"
+              echo "[agent-debug][a67a30][H1] image={{ .Values.servingRay.image }}"
+              echo "[agent-debug][a67a30][H1] PATH=${PATH}"
+              command -v python || true
+              command -v ray || true
+              python -V || true
+              python -c "import ray; print('ray_import_ok', ray.__version__)" || true
+              # #endregion
               ray start --head --dashboard-host=0.0.0.0 --disable-usage-stats
               serve run serving.ray_serve.app:toxicity_app
           ports:
