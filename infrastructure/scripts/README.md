@@ -14,6 +14,9 @@ You do **not** need `npm`, `node`, or `uv` on the VM for the default path: image
 - `create-secrets.sh`: create/update secrets (Postgres + MinIO in `mattermost`, `platform`, `mlops-training`, `mlops-serving`, `mlops-staging`, `mlops-canary` — same MinIO credentials everywhere for the single cluster MinIO).
 - `create-mlops-data-secrets.sh`: secrets for `mlops-data` (Jupyter token + `minio-secret` mirroring platform MinIO credentials).
 - `deploy-gitops-stack.sh`: preferred final bring-up path after images are built/pushed. It creates secrets from `infrastructure/.env`, installs Prometheus CRDs server-side, installs/applies ArgoCD, syncs GitOps apps, applies public demo ingresses, and prints service URLs.
+- `run-config-sweep.sh`: sequential Kubernetes Jobs for the four sweep configs (`small`, `baseline`, `bigram`, `balanced`) in `mlops-training`; registers `tfidf_logreg` versions in MLflow when quality gates pass.
+- `promote_mlflow_aliases.py`: helper used by `run-sweep-and-wire-inference.sh` — sets MLflow registered-model aliases (`staging` / `canary` / `production`) to the latest sweep version that passed gates (so serving initContainers can resolve artifacts).
+- `run-sweep-and-wire-inference.sh`: run **after** `deploy-gitops-stack.sh` when you need fresh model artifacts — runs the sweep, promotes aliases, restarts `ml-serving` in staging/canary/production namespaces, and curls `/health`. Use `--skip-sweep` if training already finished.
 - `deploy-all.sh`: legacy/manual fallback that applies all `k8s/` manifests in order, ending with **`mlops-data/`** (requires `create-mlops-data-secrets.sh` preflight). Sprint 1's preferred path is ArgoCD + Helm; see [GITOPS-SPRINT1-RUNBOOK.md](../docs/GITOPS-SPRINT1-RUNBOOK.md).
 - `deploy-mlops-data.sh`: re-apply only `k8s/mlops-data` (after `create-mlops-data-secrets.sh`).
 - `collect-evidence.sh`: export kubectl state/metrics for sizing documentation.

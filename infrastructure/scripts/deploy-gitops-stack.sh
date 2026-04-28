@@ -120,4 +120,8 @@ Grafana: admin password in \`grafana-admin-secret\` only applies on first DB ini
   \`persistence: false\` for demo. If you deployed Grafana earlier with a PVC, delete that PVC
   once so the DB re-inits, or the old password in sqlite still wins.
 
+Optional — train sweep + wire inference (after MinIO training data exists):
+
+  bash infrastructure/scripts/run-sweep-and-wire-inference.sh
+
 EOF
