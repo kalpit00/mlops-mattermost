@@ -75,15 +75,14 @@ def score(req: ScoreRequest, request: Request) -> ScoreResponse:
     if not loader.is_loaded():
         score_requests_total.labels(status="model_not_loaded", model_version=loader.model_version).inc()
         log_inference_event(
-            runtime="fastapi",
-            endpoint="/score",
+            backend="fastapi",
             status_code=503,
             latency_ms=elapsed_ms(),
-            model_version=loader.model_version,
-            degraded=True,
-            text_length=text_length,
-            scenario=scenario,
+            toxicity_score=None,
+            action=None,
+            endpoint="/score",
             error="model_not_loaded",
+            extra={"text_length": text_length, "scenario": scenario, "model_version": loader.model_version},
         )
         raise HTTPException(status_code=503, detail="model not loaded")
 
@@ -96,15 +95,13 @@ def score(req: ScoreRequest, request: Request) -> ScoreResponse:
         predictions_total.labels(label=label, policy_action=policy_action, model_version=loader.model_version).inc()
         score_requests_total.labels(status="ok", model_version=loader.model_version).inc()
         log_inference_event(
-            runtime="fastapi",
-            endpoint="/score",
+            backend="fastapi",
             status_code=200,
             latency_ms=elapsed_ms(),
-            model_version=loader.model_version,
-            policy_action=policy_action,
-            degraded=False,
-            text_length=text_length,
-            scenario=scenario,
+            toxicity_score=toxic_p,
+            action=policy_action,
+            endpoint="/score",
+            extra={"text_length": text_length, "scenario": scenario, "model_version": loader.model_version},
         )
 
         return ScoreResponse(
@@ -115,30 +112,28 @@ def score(req: ScoreRequest, request: Request) -> ScoreResponse:
         )
     except HTTPException as exc:
         log_inference_event(
-            runtime="fastapi",
-            endpoint="/score",
+            backend="fastapi",
             status_code=exc.status_code,
             latency_ms=elapsed_ms(),
-            model_version=loader.model_version,
-            degraded=exc.status_code >= 500,
-            text_length=text_length,
-            scenario=scenario,
+            toxicity_score=None,
+            action=None,
+            endpoint="/score",
             error=str(exc.detail),
+            extra={"text_length": text_length, "scenario": scenario, "model_version": loader.model_version},
         )
         raise
     except Exception as exc:
         score_requests_total.labels(status="inference_error", model_version=loader.model_version).inc()
         logger.error("inference_error", extra={"extra": {"error": str(exc)}})
         log_inference_event(
-            runtime="fastapi",
-            endpoint="/score",
+            backend="fastapi",
             status_code=503,
             latency_ms=elapsed_ms(),
-            model_version=loader.model_version,
-            degraded=True,
-            text_length=text_length,
-            scenario=scenario,
+            toxicity_score=None,
+            action=None,
+            endpoint="/score",
             error="inference_error",
+            extra={"text_length": text_length, "scenario": scenario, "model_version": loader.model_version},
         )
         # Graceful failure: explicit 503 lets Mattermost fallback path take over.
         raise HTTPException(status_code=503, detail="inference unavailable")

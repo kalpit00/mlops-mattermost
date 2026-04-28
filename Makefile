@@ -2,7 +2,7 @@
 # Requires: Python 3.11+, `pip install -r mlops_data/pipelines/requirements.txt` (see mlops-install).
 
 .PHONY: mlops-install mlops-ingest mlops-synthetic mlops-dataset mlops-monitor mlops-promotion-gate \
-	mlops-docker-pipelines mlops-docker-synthetic mlops-docker-monitor
+	mlops-docker-pipelines mlops-docker-synthetic mlops-docker-monitor run-dashboard
 
 PYTHON ?= python
 
@@ -34,3 +34,6 @@ mlops-docker-synthetic:
 mlops-docker-monitor:
 	docker compose -f docker-compose-data.yml --profile mlops run --rm mlops-pipelines \
 		python -m mlops_data.pipelines.cli_monitoring --fail-on-breach
+
+run-dashboard:
+	streamlit run serving/monitoring/dashboard.py

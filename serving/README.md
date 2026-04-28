@@ -201,6 +201,68 @@ Evidence workflow:
 3. Run high scenario benchmark (`--scenario high`)
 4. Run analyzer and compare `error_rate_pct`, `p95_ms`, `p99_ms` for `low` vs `high`
 
+## Live demo monitoring (Apr 28 - May 4)
+
+### Inference event log file
+
+By default, each inference request appends JSONL to:
+
+`serving/logs/inference_events.jsonl`
+
+Override path (optional):
+
+```bash
+export INFERENCE_EVENTS_LOG_PATH=serving/logs/inference_events.jsonl
+```
+
+Each entry includes:
+`timestamp`, `backend`, `latency_ms`, `status_code`, `success`, `toxicity_score`, `action`
+plus optional metadata (`endpoint`, `error`, `model_version`, etc.).
+
+### Push logs to MinIO (optional side process)
+
+```bash
+export MONITORING_S3_ENDPOINT_URL=http://minio.platform.svc.cluster.local:9000
+export MONITORING_AWS_ACCESS_KEY_ID=<minio-access-key>
+export MONITORING_AWS_SECRET_ACCESS_KEY=<minio-secret-key>
+export MONITORING_S3_BUCKET=mlops-monitoring
+export MONITORING_S3_KEY_PREFIX=logs
+export MONITORING_UPLOAD_INTERVAL_SEC=15
+
+python -m serving.monitoring.push_logs_to_minio
+```
+
+This uploads non-overwriting snapshots as:
+`logs/inference_events_<TIMESTAMP>.jsonl`
+
+### Compute metrics from JSONL
+
+Local log:
+
+```bash
+python -m serving.monitoring.compute_metrics --local-log serving/logs/inference_events.jsonl
+```
+
+From MinIO:
+
+```bash
+python -m serving.monitoring.compute_metrics --from-minio
+python -m serving.monitoring.compute_metrics --from-minio --backend ray
+python -m serving.monitoring.compute_metrics --from-minio --backend fastapi
+```
+
+### Streamlit dashboard
+
+```bash
+make run-dashboard
+```
+
+This runs:
+
+```bash
+streamlit run serving/monitoring/dashboard.py
+```
+
 ## Tests
 
 ```bash

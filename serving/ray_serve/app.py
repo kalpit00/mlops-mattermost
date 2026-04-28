@@ -30,15 +30,13 @@ class ToxicityModel:
             score = self.loader.score(req.text)
             action = map_score_to_action(score, self.policy_cfg)
             log_inference_event(
-                runtime="ray",
-                endpoint="/",
+                backend="ray",
                 status_code=200,
                 latency_ms=(time.perf_counter() - start) * 1000.0,
-                model_version=self.loader.model_version,
-                policy_action=action,
-                degraded=False,
-                text_length=text_length,
-                scenario=scenario,
+                toxicity_score=score,
+                action=action,
+                endpoint="/",
+                extra={"text_length": text_length, "scenario": scenario, "model_version": self.loader.model_version},
             )
             return ScoreResponse(
                 toxicity_score=score,
@@ -48,15 +46,14 @@ class ToxicityModel:
             )
         except Exception as exc:
             log_inference_event(
-                runtime="ray",
-                endpoint="/",
+                backend="ray",
                 status_code=500,
                 latency_ms=(time.perf_counter() - start) * 1000.0,
-                model_version=self.loader.model_version,
-                degraded=True,
-                text_length=text_length,
-                scenario=scenario,
+                toxicity_score=None,
+                action=None,
+                endpoint="/",
                 error=type(exc).__name__,
+                extra={"text_length": text_length, "scenario": scenario, "model_version": self.loader.model_version},
             )
             raise
 
