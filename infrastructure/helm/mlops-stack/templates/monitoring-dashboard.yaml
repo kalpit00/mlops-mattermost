@@ -46,7 +46,7 @@ spec:
           args:
             - |
               set -e
-              streamlit run app/serving/monitoring/dashboard.py \
+              streamlit run /app/serving/monitoring/dashboard.py \
                 --server.address 0.0.0.0 \
                 --server.port 8501 \
                 --server.headless true
