@@ -1,20 +1,16 @@
-# === proj17-lease (ACTIVE) — copy this file to terraform.tfvars and adjust keypair_name if needed. ===
-# Lease name:     proj17-lease
-# Lease id:       f9a84d1c-66c3-4d9d-b80b-9376991764ac   (for Horizon only — NOT a Terraform input)
-# Chameleon       project id: 89f528973fea4b3a981f9b2344e522de  (match in clouds.yaml / auth; NOT a Terraform input)
-# Validity:       2026-04-22 23:51 UTC → 2026-04-29 23:50 UTC
-# Reservation:    m1.xxlarge, 16 vCPU, 32 GiB RAM, 40 GB root disk
+# Copy to terraform.tfvars. Do not commit terraform.tfvars.
 #
-# Blazar: set reservation_id to the reservation row’s flavor_id (Horizon → lease → Reservations).
-# That value is the Nova flavor UUID for the leased m1.xxlarge; flavor_name is IGNORED when this is set.
+# Phase 1 exports (required before terraform plan/apply) — from the lease script; do not duplicate here:
+#   export TF_VAR_reservation_id="…"
+#   export TF_VAR_keypair_name="…"    # Horizon key pair name (lab: TF_VAR_key)
+#   export TF_VAR_prefix="proj17"     # optional; defaults to proj17 in variables.tf if unset
+#
+# See ../../final-sequence.md Phase 1.
 
 openstack_cloud       = "openstack"
-prefix                = "proj17"
 image_name            = "CC-Ubuntu24.04"
 flavor_name           = "m1.xxlarge"
-reservation_id        = "9e43a450-8a12-4c9e-82ea-a65e44a06782"
 existing_instance_id  = ""
-keypair_name          = "id_rsa" # change to your OpenStack keypair name
 network_name          = "sharednet1"
 external_network_name = "public"
 volume_size_gb        = 50

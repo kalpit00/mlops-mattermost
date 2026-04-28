@@ -4,7 +4,7 @@
 # Usage (from repo root, after you know the new public IP):
 #   ./infrastructure/scripts/set-floating-ip-in-manifests.sh NEW_FLOAT_IP [OLD_FLOAT_IP]
 #
-# Defaults OLD_FLOAT_IP to 129.114.25.58 if omitted.
+# Defaults OLD_FLOAT_IP to 129.114.27.105 if omitted.
 # nip.io label: dots -> hyphens (e.g. 203.0.113.10 -> 203-0-113-10.nip.io)
 #
 # Then: git diff, commit, and let ArgoCD sync the refreshed Helm values.

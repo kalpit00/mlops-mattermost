@@ -43,7 +43,7 @@ variable "existing_instance_id" {
 }
 
 variable "keypair_name" {
-  description = "OpenStack keypair name to attach to instance."
+  description = "OpenStack keypair name to attach to instance. Set with export TF_VAR_keypair_name (not committed tfvars); see final-sequence.md Phase 1."
   type        = string
 }
 

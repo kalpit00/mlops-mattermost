@@ -6,7 +6,7 @@ Note - Phase 1 can be skipped if the resources are already provisioned on Chamel
 
 **Assumptions**
 
-- A **Blazar lease is already active** (or extended) with capacity for the instance flavor you use in Terraform. We are hoping the same lease that we have reserved is extended long enough so graders don't need to manually reserve a new lease. This repo’s Terraform is tied to **`reservation_id`** in `terraform.tfvars` (the new lease’s reservation flavor UUID); a different lease usually means updating that value (and any related settings you change with it).
+- A **Blazar lease is already active** (or extended) with capacity for the instance flavor you use in Terraform. **`TF_VAR_reservation_id`** must be the reservation flavor UUID from that lease (set via Phase 1 exports, not `terraform.tfvars`).
 - **Heavy images** (e.g. Mattermost) and large manifests are **already built**; graders are not required to rebuild them for a successful deploy.
 - Default **Git** repository: **https://github.com/kalpit00/mlops-mattermost.git** (branch **`master`**).
 - SSH user on Chameleon CC images is **`cc`**.
@@ -41,7 +41,34 @@ Before any `terraform` command, you need a valid **`clouds.yaml`** from the **KV
 4. The **cloud name** inside `clouds.yaml` must match what Terraform uses: this repo’s provider defaults to cloud name **`openstack`**. Either name that cloud `openstack` in `clouds.yaml`, or set `openstack_cloud` in `terraform.tfvars` to match whatever name is in the file.
 5. Place `clouds.yaml` where the OpenStack/Terraform client will find it (for example **`~/.config/openstack/clouds.yaml`**, or the directory from which you run `terraform`). See also `infrastructure/terraform/README.md`.
 
-Then continue with Terraform below.
+### Create or read a Blazar lease and exports (matches the MLOps lab pattern)
+
+Terraform does not create the lease, and the repo must not commit the lease's reservation UUID. The Phase 1 helper gets that value at runtime and prints/sources it as **`TF_VAR_reservation_id`**.
+
+From the **repository root**, with the same OpenStack venv / `OS_CLOUD` you use for `openstack token issue`, try the lab-equivalent create path:
+
+```bash
+python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa \
+  <unique-lease-name> m1.xxlarge <hours> [--prefix proj17]
+```
+
+If local Horizon **application credential** auth rejects lease creation with **`application_credential is not allowed for managing trusts`**, create the lease in **Horizon → Reservations → Leases** using the same flavor/amount, then use the same script to dynamically extract the reservation flavor id. Exact name:
+
+```bash
+python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa \
+  --existing-lease <horizon-lease-name> [--prefix proj17]
+```
+
+`--keypair` is required: the **Horizon key pair name** (same value as the lab’s `TF_VAR_key`). Do not put the keypair in `terraform.tfvars`; use only the printed `export TF_VAR_keypair_name=...`.
+
+The script prints **`export`** lines. **Source them in the same shell** before `terraform` (reservation id, keypair, and optional prefix).
+
+|-----------------------------------|-------------------------|
+| `TF_VAR_reservation` | `TF_VAR_reservation_id` |
+| `TF_VAR_suffix` | `TF_VAR_prefix` |
+| `TF_VAR_key` | `TF_VAR_keypair_name` |
+
+**Jupyter:** `infrastructure/scripts/chameleon_mlops_lease.ipynb` (cwd = repo root).
 
 ### Terraform apply
 
@@ -50,28 +77,34 @@ Then continue with Terraform below.
     ```bash
     cd infrastructure/terraform
     cp terraform.tfvars.example terraform.tfvars
-    # Edit terraform.tfvars: keypair_name, reservation_id (lease flavor UUID) or existing_instance_id, etc.
-    # The example file includes the base configs; adjust for a new lease, keypair, or flavor if you need more compute, volume size, or memory.
+    # Ensure Phase 1 exports are already in this shell (TF_VAR_reservation_id, TF_VAR_keypair_name). Edit tfvars only for image, network, etc.
     terraform init
     terraform plan
     terraform apply
     ```
 
-2. Record the **floating IP**:
+2. Record the **floating IP**. Treat this as Phase 1 output only; do not assume any previous floating IP survived teardown:
 
     ```bash
     terraform output -raw floating_ip
     ```
 
-**Optional** - **If the floating IP changed** (new IP vs what is encoded in nip.io hostnames and examples), update the repo **before** Phase 2 so ingress URLs and `.env.example` patterns stay consistent:
+Do **not** manually hard-code this into Terraform inputs. The hostname/manifests update is a **Phase 2 GitOps step**.
+
+### Phase 2 handoff: floating IP manifests and GitOps
+
+After Terraform prints the new floating IP, update the `nip.io` hostnames in the repository and push that change to `master` so ArgoCD can sync the new public hosts:
 
     ```bash
     # From repository root (not inside terraform/)
-    ./infrastructure/scripts/set-floating-ip-in-manifests.sh <NEW_FLOAT_IP> [<OLD_FLOAT_IP>]
+    ./infrastructure/scripts/set-floating-ip-in-manifests.sh "$(cd infrastructure/terraform && terraform output -raw floating_ip)" [<OLD_FLOAT_IP>]
+    git diff
+    git add infrastructure
+    git commit -m "Update Chameleon floating IP"
+    git push origin master
     ```
 
-The helper script replaces the dotted IP across Helm values, ingress manifests, and `infrastructure/.env.example`. If you omit the old IP, the script uses its documented default—override with the second argument if your previous IP was different.
-Please note - running this script means the graders might need to require push access as the change would only be made locally. ArgoCD is implemented to watch the main repo `https://github.com/kalpit00/mlops-mattermost.git`.
+The helper script replaces the dotted IP across Helm values, ingress manifests, and `infrastructure/.env.example`. If you omit the old IP, the script uses its documented default; pass the second argument when the previous committed IP differs. ArgoCD watches `https://github.com/kalpit00/mlops-mattermost.git`, so the push is what makes the new floating IP visible to GitOps.
 
 3. **SSH to the VM** (after your public key is on the instance):
 
@@ -164,7 +197,8 @@ kubectl get pods -A
 
 | Artifact                      | Location / command                                                                                                                    |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Terraform template            | `infrastructure/terraform/terraform.tfvars.example` → copy to `infrastructure/terraform/terraform.tfvars`                             |
+| Blazar lease + TF_VAR exports | `python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair <horizon-name> …` (then source prints before Terraform)  |
+| Terraform template            | `infrastructure/terraform/terraform.tfvars.example` → copy to `infrastructure/terraform/terraform.tfvars` (no keypair / reservation)  |
 | Terraform init / plan / apply | `terraform init` → `terraform plan` → `terraform apply`                                                                               |
 | Floating IP output            | `terraform output -raw floating_ip`                                                                                                   |
 | FIP → manifests / examples    | `./infrastructure/scripts/set-floating-ip-in-manifests.sh`                                                                            |
