@@ -41,34 +41,50 @@ Before any `terraform` command, you need a valid **`clouds.yaml`** from the **KV
 4. The **cloud name** inside `clouds.yaml` must match what Terraform uses: this repo’s provider defaults to cloud name **`openstack`**. Either name that cloud `openstack` in `clouds.yaml`, or set `openstack_cloud` in `terraform.tfvars` to match whatever name is in the file.
 5. Place `clouds.yaml` where the OpenStack/Terraform client will find it (for example **`~/.config/openstack/clouds.yaml`**, or the directory from which you run `terraform`). See also `infrastructure/terraform/README.md`.
 
-### Create or read a Blazar lease and exports (matches the MLOps lab pattern)
+### Blazar lease in Horizon, then reservation exports for Terraform
 
-Terraform does not create the lease, and the repo must not commit the lease's reservation UUID. The Phase 1 helper gets that value at runtime and prints/sources it as **`TF_VAR_reservation_id`**.
+Terraform does not create the lease, and the repo must not commit the lease’s reservation UUID. Create the lease in the UI, then use the helper script to print the **`export`** lines for **`TF_VAR_reservation_id`**.
 
-From the **repository root**, with the same OpenStack venv / `OS_CLOUD` you use for `openstack token issue`, try the lab-equivalent create path:
+#### 1. Create the lease in Horizon (KVM@TACC)
+
+1. Open **Horizon** for your project (Chameleon portal → **Experiment → KVM@TACC** → launch Horizon).
+2. Go to **Reservations → Leases** (Blazar).
+3. **Create Lease**: pick a **unique name** (example below: `proj17-lease-notebook`), choose the **host reservation** / instance flavor you need (e.g. `m1.xxlarge` with the capacity your team agreed on), set **duration**, and attach your **SSH key pair** (e.g. **`id_rsa`** — the same name that must appear in OpenStack as a key pair).
+4. Wait until the lease is **Active** and shows the reserved capacity.
+
+#### 2. Activate OpenStack CLI auth (same shell you will use for Terraform)
+
+Use a virtualenv that has the OpenStack client and valid credentials (paths may differ on your machine):
 
 ```bash
-python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa \
-  <unique-lease-name> m1.xxlarge <hours> [--prefix proj17]
+source ~/.venvs/chameleon-openstack/bin/activate
+export OS_CLOUD=openstack
 ```
 
-If local Horizon **application credential** auth rejects lease creation with **`application_credential is not allowed for managing trusts`**, create the lease in **Horizon → Reservations → Leases** using the same flavor/amount, then use the same script to dynamically extract the reservation flavor id. Exact name:
+#### 3. Resolve the lease and print `export` lines (repository root)
+
+Pass the **exact lease name** you used in Horizon for `--existing-lease`:
 
 ```bash
-python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa \
-  --existing-lease <horizon-lease-name> [--prefix proj17]
+python3 infrastructure/scripts/chameleon_create_instance_lease.py \
+  --keypair id_rsa \
+  --existing-lease proj17-lease-notebook \
+  --prefix proj17
 ```
 
-`--keypair` is required: the **Horizon key pair name** (same value as the lab’s `TF_VAR_key`). Do not put the keypair in `terraform.tfvars`; use only the printed `export TF_VAR_keypair_name=...`.
+`--keypair` is required: the **Horizon key pair name** (same value you will export as `TF_VAR_keypair_name`).
 
-The script prints **`export`** lines. **Source them in the same shell** before `terraform` (reservation id, keypair, and optional prefix).
+#### 4. Export `TF_VAR_*` in the same shell (do not hard-code in tfvars)
 
-|-----------------------------------|-------------------------|
-| `TF_VAR_reservation` | `TF_VAR_reservation_id` |
-| `TF_VAR_suffix` | `TF_VAR_prefix` |
-| `TF_VAR_key` | `TF_VAR_keypair_name` |
+Run the **`export`** lines the script prints, or set them yourself from the script’s output. Example shape (replace the reservation UUID with the value from your run — the value below is illustrative only):
 
-**Jupyter:** `infrastructure/scripts/chameleon_mlops_lease.ipynb` (cwd = repo root).
+```bash
+export TF_VAR_reservation_id="783aa47b-93ba-4ae1-8081-aba837fc5711"
+export TF_VAR_prefix="proj17"
+export TF_VAR_keypair_name="id_rsa"
+```
+
+Keep these exports in the **same terminal session** where you will run **`terraform init` / `plan` / `apply`** so Terraform sees the variables without committing secrets to Git.
 
 ### Terraform apply
 
@@ -213,13 +229,13 @@ kubectl get pods -A
 
 ## Quick reference
 
-| Artifact                      | Location / command                                                                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Blazar lease + TF_VAR exports | `python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair <horizon-name> …` (then source prints before Terraform)  |
-| Terraform template            | `infrastructure/terraform/terraform.tfvars.example` → copy to `infrastructure/terraform/terraform.tfvars` (no keypair / reservation)  |
-| Terraform init / plan / apply | `terraform init` → `terraform plan` → `terraform apply`                                                                               |
-| Floating IP output            | `terraform output -raw floating_ip`                                                                                                   |
-| FIP → manifests / examples    | `./infrastructure/scripts/set-floating-ip-in-manifests.sh`                                                                            |
-| VM bootstrap                  | `infrastructure/scripts/install-chameleon-dev-tools.sh`, `infrastructure/scripts/bootstrap-k8s.sh`, `sudo apt-get install -y python3` |
-| Secrets template              | `infrastructure/.env.example` → copy to `infrastructure/.env`                                                                         |
-| GitOps bring-up               | `bash infrastructure/scripts/deploy-gitops-stack.sh`                                                                                  |
+| Artifact                      | Location / command                                                                                                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Blazar lease + TF_VAR exports | Create lease in **Horizon** → activate **`~/.venvs/chameleon-openstack`** + **`export OS_CLOUD=openstack`** → **`chameleon_create_instance_lease.py --existing-lease <name>`** → **`export TF_VAR_*`** (same shell as Terraform) |
+| Terraform template            | `infrastructure/terraform/terraform.tfvars.example` → copy to `infrastructure/terraform/terraform.tfvars` (no keypair / reservation)                                                                                             |
+| Terraform init / plan / apply | `terraform init` → `terraform plan` → `terraform apply`                                                                                                                                                                          |
+| Floating IP output            | `terraform output -raw floating_ip`                                                                                                                                                                                              |
+| FIP → manifests / examples    | `./infrastructure/scripts/set-floating-ip-in-manifests.sh`                                                                                                                                                                       |
+| VM bootstrap                  | `infrastructure/scripts/install-chameleon-dev-tools.sh`, `infrastructure/scripts/bootstrap-k8s.sh`, `sudo apt-get install -y python3`                                                                                            |
+| Secrets template              | `infrastructure/.env.example` → copy to `infrastructure/.env`                                                                                                                                                                    |
+| GitOps bring-up               | `bash infrastructure/scripts/deploy-gitops-stack.sh`                                                                                                                                                                             |
