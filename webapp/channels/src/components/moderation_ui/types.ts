@@ -9,6 +9,7 @@ export type ModelDecision = 'toxic' | 'non_toxic';
 export type ModeratorLabel = 'toxic' | 'non_toxic';
 export type ModeratorAction = 'keep' | 'remove';
 export type ReviewStatus = 'open' | 'reviewed';
+export type MessageTypeFilter = 'toxic' | 'non_toxic' | 'all';
 
 export type ModerationAlert = {
     post_id: string;
