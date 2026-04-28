@@ -19,7 +19,7 @@ def load_requests(path: Path) -> list[dict]:
     return rows
 
 
-async def run(url: str, requests_path: Path, total_requests: int, concurrency: int) -> None:
+async def run(url: str, requests_path: Path, total_requests: int, concurrency: int, scenario: str | None = None) -> None:
     payloads = load_requests(requests_path)
     latencies_ms: list[float] = []
     ok = 0
@@ -34,7 +34,8 @@ async def run(url: str, requests_path: Path, total_requests: int, concurrency: i
             async with sem:
                 start = time.perf_counter()
                 try:
-                    r = await client.post(url, json=payload)
+                    headers = {"X-Load-Scenario": scenario} if scenario else None
+                    r = await client.post(url, json=payload, headers=headers)
                     elapsed = (time.perf_counter() - start) * 1000
                     latencies_ms.append(elapsed)
                     if r.status_code == 200:
@@ -60,6 +61,7 @@ def main() -> None:
     parser.add_argument("--url", default="http://127.0.0.1:8000/score")
     parser.add_argument("--requests", type=int, default=500)
     parser.add_argument("--concurrency", type=int, default=10)
+    parser.add_argument("--scenario", default=None, help="Scenario label for request audit logs (e.g. low/high)")
     parser.add_argument(
         "--sample",
         type=Path,
@@ -67,7 +69,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    asyncio.run(run(args.url, args.sample, args.requests, args.concurrency))
+    asyncio.run(run(args.url, args.sample, args.requests, args.concurrency, args.scenario))
 
 
 if __name__ == "__main__":

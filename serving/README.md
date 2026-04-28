@@ -169,9 +169,37 @@ After changing env or code, **`ray stop --force`** then `ray start` + `serve run
 ## Benchmarks
 
 ```bash
-python -m serving.benchmarks.benchmark_http --url http://127.0.0.1:8000/score --requests 500 --concurrency 10
-python -m serving.benchmarks.benchmark_ray_serve --url http://127.0.0.1:8001/ --requests 500 --concurrency 10
+python -m serving.benchmarks.benchmark_http --url http://127.0.0.1:8000/score --requests 500 --concurrency 10 --scenario low
+python -m serving.benchmarks.benchmark_http --url http://127.0.0.1:8000/score --requests 2000 --concurrency 50 --scenario high
+python -m serving.benchmarks.benchmark_ray_serve --url http://127.0.0.1:8000/ --requests 500 --concurrency 10 --scenario low
+python -m serving.benchmarks.benchmark_ray_serve --url http://127.0.0.1:8000/ --requests 2000 --concurrency 50 --scenario high
 ```
+
+## Inference request audit logging (JSONL evidence)
+
+Each inference request can be persisted to JSONL for low-vs-high load evidence.
+
+```bash
+export INFERENCE_AUDIT_LOG_PATH=/tmp/inference_requests.jsonl
+```
+
+The app appends one JSON object per request with fields like:
+`runtime`, `endpoint`, `status_code`, `latency_ms`, `model_version`, `policy_action`,
+`degraded`, `text_length`, optional `scenario`, and optional `error`.
+
+Analyze the combined log:
+
+```bash
+python -m serving.benchmarks.analyze_inference_logs --log /tmp/inference_requests.jsonl
+python -m serving.benchmarks.analyze_inference_logs --log /tmp/inference_requests.jsonl --runtime fastapi
+python -m serving.benchmarks.analyze_inference_logs --log /tmp/inference_requests.jsonl --runtime ray
+```
+
+Evidence workflow:
+1. Clear old logs: `rm -f /tmp/inference_requests.jsonl`
+2. Run low scenario benchmark (`--scenario low`)
+3. Run high scenario benchmark (`--scenario high`)
+4. Run analyzer and compare `error_rate_pct`, `p95_ms`, `p99_ms` for `low` vs `high`
 
 ## Tests
 

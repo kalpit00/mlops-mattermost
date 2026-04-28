@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from .logging_utils import get_logger
+from .logging_utils import get_logger, log_inference_event
 from .model_loader import ModelConfig, ModelLoader
 from .policy import PolicyConfig, map_score_to_action
 from .schemas import HealthResponse, ScoreRequest, ScoreResponse
@@ -64,11 +64,27 @@ def ready() -> HealthResponse:
 
 
 @app.post("/score", response_model=ScoreResponse)
-def score(req: ScoreRequest) -> ScoreResponse:
+def score(req: ScoreRequest, request: Request) -> ScoreResponse:
     start = time.perf_counter()
+    scenario = request.headers.get("X-Load-Scenario")
+    text_length = len(req.text)
+
+    def elapsed_ms() -> float:
+        return (time.perf_counter() - start) * 1000.0
 
     if not loader.is_loaded():
         score_requests_total.labels(status="model_not_loaded", model_version=loader.model_version).inc()
+        log_inference_event(
+            runtime="fastapi",
+            endpoint="/score",
+            status_code=503,
+            latency_ms=elapsed_ms(),
+            model_version=loader.model_version,
+            degraded=True,
+            text_length=text_length,
+            scenario=scenario,
+            error="model_not_loaded",
+        )
         raise HTTPException(status_code=503, detail="model not loaded")
 
     try:
@@ -79,6 +95,17 @@ def score(req: ScoreRequest) -> ScoreResponse:
         toxicity_score_histogram.labels(model_version=loader.model_version).observe(toxic_p)
         predictions_total.labels(label=label, policy_action=policy_action, model_version=loader.model_version).inc()
         score_requests_total.labels(status="ok", model_version=loader.model_version).inc()
+        log_inference_event(
+            runtime="fastapi",
+            endpoint="/score",
+            status_code=200,
+            latency_ms=elapsed_ms(),
+            model_version=loader.model_version,
+            policy_action=policy_action,
+            degraded=False,
+            text_length=text_length,
+            scenario=scenario,
+        )
 
         return ScoreResponse(
             toxicity_score=toxic_p,
@@ -86,11 +113,33 @@ def score(req: ScoreRequest) -> ScoreResponse:
             policy_action=policy_action,
             degraded=False,
         )
-    except HTTPException:
+    except HTTPException as exc:
+        log_inference_event(
+            runtime="fastapi",
+            endpoint="/score",
+            status_code=exc.status_code,
+            latency_ms=elapsed_ms(),
+            model_version=loader.model_version,
+            degraded=exc.status_code >= 500,
+            text_length=text_length,
+            scenario=scenario,
+            error=str(exc.detail),
+        )
         raise
     except Exception as exc:
         score_requests_total.labels(status="inference_error", model_version=loader.model_version).inc()
         logger.error("inference_error", extra={"extra": {"error": str(exc)}})
+        log_inference_event(
+            runtime="fastapi",
+            endpoint="/score",
+            status_code=503,
+            latency_ms=elapsed_ms(),
+            model_version=loader.model_version,
+            degraded=True,
+            text_length=text_length,
+            scenario=scenario,
+            error="inference_error",
+        )
         # Graceful failure: explicit 503 lets Mattermost fallback path take over.
         raise HTTPException(status_code=503, detail="inference unavailable")
     finally:
