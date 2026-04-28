@@ -19,11 +19,13 @@ Reservation shape:
   from `openstack flavor show -f json`, equivalent capacity to the lab's m1.* lease.
 
 Usage:
-  python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair <horizon-keypair-name> [LEASE_NAME] [FLAVOR] [HOURS]
+  python3 infrastructure/scripts/chameleon_create_instance_lease.py --existing-lease <LEASE_NAME> [--keypair <horizon-keypair-name>] [--prefix <prefix>]
+  python3 infrastructure/scripts/chameleon_create_instance_lease.py [--keypair <horizon-keypair-name>] [LEASE_NAME] [FLAVOR] [HOURS]
 
 Examples:
-  python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa_chameleon
-  python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa_chameleon proj17-lease-1 m1.xxlarge 72
+  python3 infrastructure/scripts/chameleon_create_instance_lease.py --existing-lease proj17-lease-notebook
+  python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa --existing-lease proj17-lease-notebook --prefix proj17
+  python3 infrastructure/scripts/chameleon_create_instance_lease.py --keypair id_rsa proj17-lease-1 m1.xxlarge 72
 """
 from __future__ import annotations
 
@@ -150,11 +152,31 @@ def _reservation_flavor_id(lease_name: str) -> str:
         sys.exit(1)
     data = json.loads(r.stdout)
     reservations = data.get("reservations") or []
+    if isinstance(reservations, str):
+        try:
+            reservations = json.loads(reservations)
+        except json.JSONDecodeError:
+            sys.stderr.write("Lease JSON reservations field is a string but not valid JSON.\n")
+            sys.stderr.write(r.stdout)
+            sys.exit(1)
+    if isinstance(reservations, dict):
+        reservations = [reservations]
     if not reservations:
         sys.stderr.write("Lease JSON has no reservations.\n")
         sys.stderr.write(r.stdout)
         sys.exit(1)
     first = reservations[0]
+    if isinstance(first, str):
+        try:
+            first = json.loads(first)
+        except json.JSONDecodeError:
+            sys.stderr.write("First reservation entry is a string but not valid JSON.\n")
+            sys.stderr.write(r.stdout)
+            sys.exit(1)
+    if not isinstance(first, dict):
+        sys.stderr.write("First reservation entry is not an object.\n")
+        sys.stderr.write(r.stdout)
+        sys.exit(1)
     fid = first.get("flavor_id") or first.get("id")
     if not fid:
         sys.stderr.write("Could not read flavor_id/id from first reservation.\n")
@@ -170,14 +192,21 @@ def main(argv: list[str] | None = None) -> None:
     default_lease = f"mlops-lease-{os.getenv('USER', 'user')}-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
     parser.add_argument(
         "--keypair",
-        required=True,
+        default="id_rsa",
         metavar="NAME",
-        help="OpenStack Horizon key pair name (printed as TF_VAR_keypair_name; lab: TF_VAR_key).",
+        help="OpenStack Horizon key pair name (printed as TF_VAR_keypair_name; lab: TF_VAR_key). Default: %(default)s.",
     )
     parser.add_argument(
         "--prefix",
         default="proj17",
         help="Printed as TF_VAR_prefix (lab: TF_VAR_suffix). Default: %(default)s.",
+    )
+    parser.add_argument(
+        "--existing-lease",
+        "--existing",
+        dest="existing_lease",
+        metavar="NAME",
+        help="Use an existing Blazar lease instead of creating a new one.",
     )
     parser.add_argument("lease_name", nargs="?", default=default_lease)
     parser.add_argument("flavor", nargs="?", default="m1.xxlarge")
@@ -185,31 +214,19 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     _require_openstack_reservation()
-    start, end = _lease_window_utc(args.hours)
-    reservation = _virtual_instance_reservation(args.flavor)
-    _create_lease(args.lease_name, start, end, reservation)
-    _wait_lease_active(args.lease_name)
-    flavor_uuid = _reservation_flavor_id(args.lease_name)
+    lease_name = args.existing_lease or args.lease_name
+    if args.existing_lease:
+        sys.stderr.write(f"Using existing lease {lease_name!r}; skipping lease creation.\n")
+    else:
+        start, end = _lease_window_utc(args.hours)
+        reservation = _virtual_instance_reservation(args.flavor)
+        _create_lease(lease_name, start, end, reservation)
+    _wait_lease_active(lease_name)
+    flavor_uuid = _reservation_flavor_id(lease_name)
 
-    # Match this repo's variable name (reservation_id). Course PDF often says TF_VAR_reservation.
-    print()
-    print(f"# Lease name (Horizon / CLI only): {args.lease_name}")
-    print("# Paste into your shell, then: cd infrastructure/terraform && terraform plan && terraform apply")
-    print()
     print(f'export TF_VAR_reservation_id="{flavor_uuid}"')
     print(f'export TF_VAR_prefix="{args.prefix}"')
     print(f'export TF_VAR_keypair_name="{args.keypair}"')
-    print()
-    print("# Course lab naming (GourmetGram tf used reservation + suffix + key):")
-    print(f'#   export TF_VAR_reservation="{flavor_uuid}"   # use TF_VAR_reservation_id in this repo')
-    print(f'#   export TF_VAR_suffix="{args.prefix}"        # use TF_VAR_prefix in this repo')
-    print(f'#   export TF_VAR_key="{args.keypair}"          # use TF_VAR_keypair_name in this repo')
-    print()
-    print("Verify Nova reservation flavor:")
-    print(f"  openstack flavor list | grep {flavor_uuid}")
-    print()
-    print("Terraform (from repo root):")
-    print("  cd infrastructure/terraform && terraform init && terraform plan && terraform apply")
 
 
 if __name__ == "__main__":
