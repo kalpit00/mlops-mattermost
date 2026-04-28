@@ -73,6 +73,28 @@ serving:
       cpu: "1"
       memory: 1Gi
 
+servingRay:
+  enabled: false
+  namespace: mlops-serving
+  name: ml-serving-ray
+  replicas: 1
+  image: kalpit00/mlops-serving:v3
+  imagePullPolicy: IfNotPresent
+  initImage: ghcr.io/mlflow/mlflow:v3.11.1-full
+  modelName: tfidf_logreg
+  modelAlias: production
+  modelArtifactPath: tfidf_logreg_pipeline.joblib
+  servingModelVersion: tfidf-logreg
+  policyReviewThreshold: "0.70"
+  policyEscalateThreshold: "0.90"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
 training:
   enabled: false
   namespace: mlops-training
@@ -98,7 +120,7 @@ mattermost:
   imagePullPolicy: IfNotPresent
   host: 129-114-27-105.nip.io
   siteUrl: http://129-114-27-105.nip.io
-  inferenceUrl: http://ml-serving.mlops-serving.svc.cluster.local:8000/score
+  inferenceUrl: http://ml-serving-ray.mlops-serving.svc.cluster.local:8000
   inferenceTimeoutMs: "2000"
   primaryTeam: nyu
   dataPvcSize: 10Gi

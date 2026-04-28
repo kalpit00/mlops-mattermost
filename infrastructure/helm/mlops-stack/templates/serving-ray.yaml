@@ -1,0 +1,139 @@
+{{- if .Values.servingRay.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.servingRay.name }}
+  namespace: {{ .Values.servingRay.namespace }}
+  labels:
+    app: ml-serving-ray
+    mlops.environment: {{ .Values.servingRay.modelAlias | quote }}
+spec:
+  replicas: {{ .Values.servingRay.replicas }}
+  selector:
+    matchLabels:
+      app: ml-serving-ray
+  template:
+    metadata:
+      labels:
+        app: ml-serving-ray
+        mlops.environment: {{ .Values.servingRay.modelAlias | quote }}
+    spec:
+      initContainers:
+        - name: fetch-model
+          image: {{ .Values.servingRay.initImage }}
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.global.mlflowTrackingUri | quote }}
+            - name: MODEL_NAME
+              value: {{ .Values.servingRay.modelName | quote }}
+            - name: MODEL_ALIAS
+              value: {{ .Values.servingRay.modelAlias | quote }}
+            - name: MODEL_ARTIFACT_PATH
+              value: {{ .Values.servingRay.modelArtifactPath | quote }}
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: {{ .Values.global.minioEndpoint | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.global.s3Region | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              python <<'PY'
+              import os
+              from mlflow import MlflowClient
+              from mlflow.artifacts import download_artifacts
+
+              name = os.environ["MODEL_NAME"]
+              alias = os.environ["MODEL_ALIAS"]
+              artifact_path = os.environ["MODEL_ARTIFACT_PATH"]
+              dst = "/models"
+
+              client = MlflowClient()
+              mv = client.get_model_version_by_alias(name=name, alias=alias)
+              print(
+                  f"Resolved {name}@{alias} -> version {mv.version}, "
+                  f"run_id {mv.run_id}, status {mv.status}"
+              )
+
+              download_artifacts(
+                  run_id=mv.run_id,
+                  artifact_path=artifact_path,
+                  dst_path=dst,
+              )
+              print(f"Downloaded {artifact_path} from run {mv.run_id} to {dst}/")
+              PY
+          volumeMounts:
+            - name: model
+              mountPath: /models
+      containers:
+        - name: ray-serve
+          image: {{ .Values.servingRay.image }}
+          imagePullPolicy: {{ .Values.servingRay.imagePullPolicy }}
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: MODEL_PATH
+              value: /models/tfidf_logreg_pipeline.joblib
+            - name: SERVING_MODEL_VERSION
+              value: {{ .Values.servingRay.servingModelVersion | quote }}
+            - name: POLICY_REVIEW_THRESHOLD
+              value: {{ .Values.servingRay.policyReviewThreshold | quote }}
+            - name: POLICY_ESCALATE_THRESHOLD
+              value: {{ .Values.servingRay.policyEscalateThreshold | quote }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              ray start --head --dashboard-host=0.0.0.0 --disable-usage-stats
+              serve run serving.ray_serve.app:toxicity_app
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: dashboard
+              containerPort: 8265
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.servingRay.resources | indent 12 }}
+          volumeMounts:
+            - name: model
+              mountPath: /models
+      volumes:
+        - name: model
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.servingRay.name }}
+  namespace: {{ .Values.servingRay.namespace }}
+  labels:
+    app: ml-serving-ray
+spec:
+  selector:
+    app: ml-serving-ray
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+  type: ClusterIP
+{{- end }}

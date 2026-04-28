@@ -10,6 +10,13 @@ serving:
     maxReplicas: 2
     targetCPUUtilizationPercentage: 70
 
+servingRay:
+  enabled: true
+  namespace: mlops-serving
+  image: kalpit00/mlops-serving:v3
+  modelAlias: production
+  servingModelVersion: tfidf-logreg-production
+
 training:
   enabled: true
   namespace: mlops-training
@@ -20,7 +27,7 @@ mattermost:
   image: kalpit00/mattermost-mlops:v5
   host: 129-114-27-105.nip.io
   siteUrl: http://129-114-27-105.nip.io
-  inferenceUrl: http://ml-serving.mlops-serving.svc.cluster.local:8000/score
+  inferenceUrl: http://ml-serving-ray.mlops-serving.svc.cluster.local:8000
 
 data:
   enabled: true
