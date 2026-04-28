@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY serving/app ./app
 COPY serving/app ./serving/app
 COPY serving/ray_serve ./serving/ray_serve
+COPY serving/monitoring ./serving/monitoring
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app

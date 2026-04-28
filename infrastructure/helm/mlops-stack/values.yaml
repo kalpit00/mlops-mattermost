@@ -139,6 +139,23 @@ mattermost:
       cpu: "2"
       memory: 3Gi
 
+monitoringDashboard:
+  enabled: false
+  namespace: mlops-serving
+  name: serving-monitoring-dashboard
+  image: kalpit00/mlops-serving:v6
+  imagePullPolicy: IfNotPresent
+  host: monitoring.129-114-27-105.nip.io
+  refreshSec: "5"
+  logSource: minio
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
 data:
   enabled: false
   namespace: mlops-data

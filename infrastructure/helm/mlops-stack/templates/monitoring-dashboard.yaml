@@ -1,0 +1,107 @@
+{{- if .Values.monitoringDashboard.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.monitoringDashboard.name }}
+  namespace: {{ .Values.monitoringDashboard.namespace }}
+  labels:
+    app: serving-monitoring-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: serving-monitoring-dashboard
+  template:
+    metadata:
+      labels:
+        app: serving-monitoring-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: {{ .Values.monitoringDashboard.image }}
+          imagePullPolicy: {{ .Values.monitoringDashboard.imagePullPolicy }}
+          env:
+            - name: MONITORING_S3_ENDPOINT_URL
+              value: {{ .Values.global.minioEndpoint | quote }}
+            - name: MONITORING_S3_BUCKET
+              value: "mlops-monitoring"
+            - name: MONITORING_S3_KEY_PREFIX
+              value: "logs"
+            - name: MONITORING_LOG_SOURCE
+              value: {{ .Values.monitoringDashboard.logSource | quote }}
+            - name: MONITORING_AWS_REGION
+              value: {{ .Values.global.s3Region | quote }}
+            - name: MONITORING_AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-user
+            - name: MONITORING_AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.minioSecretName }}
+                  key: root-password
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              streamlit run serving/monitoring/dashboard.py \
+                --server.address 0.0.0.0 \
+                --server.port 8501 \
+                --server.headless true
+          ports:
+            - name: http
+              containerPort: 8501
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+{{ toYaml .Values.monitoringDashboard.resources | indent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.monitoringDashboard.name }}
+  namespace: {{ .Values.monitoringDashboard.namespace }}
+  labels:
+    app: serving-monitoring-dashboard
+spec:
+  selector:
+    app: serving-monitoring-dashboard
+  ports:
+    - name: http
+      port: 8501
+      targetPort: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.monitoringDashboard.name }}
+  namespace: {{ .Values.monitoringDashboard.namespace }}
+  annotations:
+{{ toYaml .Values.global.ingress.annotations | indent 4 }}
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  rules:
+    - host: {{ .Values.monitoringDashboard.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.monitoringDashboard.name }}
+                port:
+                  number: 8501
+{{- end }}
