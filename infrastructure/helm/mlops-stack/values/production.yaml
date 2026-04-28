@@ -11,7 +11,7 @@ serving:
     targetCPUUtilizationPercentage: 70
 
 servingRay:
-  enabled: true
+  enabled: false
   namespace: mlops-serving
   image: kalpit00/mlops-serving:v5
   imagePullPolicy: Always
