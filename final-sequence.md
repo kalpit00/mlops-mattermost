@@ -160,6 +160,13 @@ sudo apt-get install -y python3
 This is the all-important script. It expects `infrastructure/.env` to exist. That is why, in step 1, we provided an example file `infrastructure/.env.example` with base credentials. These can be manually edited to stronger credentials, or alternatively an `infrastructure/.env` can be copied onto the VM via `scp`.
 The `deploy-gitops-stack.sh` script invokes `create-secrets.sh` and `create-mlops-data-secrets.sh` as part of the flow.
 
+3. **Training data and model artifacts (after deploy)** — After a reprovision, prior **training data and model artifacts are not persisted** in this demo path. **Copy or upload** `raw/jigsaw/train.csv` into MinIO at **`moderation-data/raw/jigsaw/train.csv`**, then run the commands below: they **retrain all four sweep configs**, **set MLflow aliases**, and **restart serving** so inference is live again.
+
+    ```bash
+    chmod +x infrastructure/scripts/run-sweep-and-wire-inference.sh
+    ./infrastructure/scripts/run-sweep-and-wire-inference.sh
+    ```
+
 **Verification**
 
 **Cluster health:** to confirm the node is Ready and workloads are running.
