@@ -15,8 +15,13 @@ class ModelConfig:
 
     @staticmethod
     def from_env() -> "ModelConfig":
+        raw = os.environ.get("MODEL_PATH", "").strip()
+        # Ignore copy-paste tutorial placeholders so default /models/... is used.
+        if raw in ("/path/to/tfidf_logreg_pipeline.joblib", "/path/to/pipeline.joblib"):
+            raw = ""
+        model_path = raw or "/models/tfidf_logreg_pipeline.joblib"
         return ModelConfig(
-            model_path=os.environ.get("MODEL_PATH", "/models/tfidf_logreg_pipeline.joblib").strip(),
+            model_path=model_path,
             model_version=os.environ.get("SERVING_MODEL_VERSION", "tfidf-logreg").strip() or "tfidf-logreg",
         )
 
@@ -36,7 +41,12 @@ class ModelLoader:
 
     def load(self) -> None:
         if not os.path.exists(self._config.model_path):
-            raise FileNotFoundError(f"MODEL_PATH does not exist: {self._config.model_path}")
+            raise FileNotFoundError(
+                f"MODEL_PATH does not exist: {self._config.model_path!r}. "
+                "Unset MODEL_PATH to use the default /models/tfidf_logreg_pipeline.joblib (Kubernetes), "
+                "or set MODEL_PATH to a real file, e.g. after: "
+                "kubectl -n mlops-serving cp <pod>:/models/tfidf_logreg_pipeline.joblib ./.cache/"
+            )
 
         with self._lock:
             self._pipeline = joblib.load(self._config.model_path)
