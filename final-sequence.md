@@ -167,6 +167,17 @@ The `deploy-gitops-stack.sh` script invokes `create-secrets.sh` and `create-mlop
     ./infrastructure/scripts/run-sweep-and-wire-inference.sh
     ```
 
+4. **Scheduled retrain (manual Job) → MLflow alias → serving rollout** — To run the same training as the CronJob once, promote the new version in MLflow (e.g. point the **`production`** alias at it), reload serving, and confirm which registry version the init container resolved:
+
+    ```bash
+    kubectl -n mlops-training create job \
+      --from=cronjob/ml-training-retrain "ml-training-manual-$(date +%s)"
+
+    kubectl -n mlops-serving rollout restart deployment/ml-serving
+
+    kubectl -n mlops-serving logs deploy/ml-serving -c fetch-model
+    ```
+
 **Verification**
 
 **Cluster health:** to confirm the node is Ready and workloads are running.
