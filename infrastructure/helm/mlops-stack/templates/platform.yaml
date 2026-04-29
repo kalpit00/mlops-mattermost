@@ -168,6 +168,9 @@ spec:
           args:
             - mlflow
             - server
+            # MLflow 3 defaults to uvicorn with 4 workers; on small pods that OOMs or never binds :5000 in time.
+            - --workers
+            - "1"
             - --host
             - 0.0.0.0
             - --port
@@ -176,11 +179,15 @@ spec:
             - sqlite:////mlflow-data/mlflow.db
             - --default-artifact-root
             - s3://mlflow-artifacts/
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:

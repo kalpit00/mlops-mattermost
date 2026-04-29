@@ -90,13 +90,17 @@ sync_app mlops-production
 sync_app mlops-canary
 sync_app mlops-observability
 
-echo "[7/8] Waiting for key workloads. Some pods can take a few minutes on a cold VM..."
-kubectl -n argocd wait --for=jsonpath='{.status.health.status}'=Healthy application/mlops-platform --timeout=600s || true
-kubectl -n argocd wait --for=jsonpath='{.status.health.status}'=Healthy application/mlops-staging --timeout=600s || true
-kubectl -n mattermost rollout status deploy/mattermost --timeout=600s || true
+echo "[7/8] Waiting for initial demo services. Serving may stay Degraded until the post-deploy sweep creates MLflow aliases..."
+kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=300s
+kubectl -n platform rollout status deploy/minio --timeout=600s
+kubectl -n platform rollout status deploy/mlflow --timeout=600s
+kubectl -n mattermost rollout status deploy/mattermost --timeout=600s
 kubectl -n observability rollout status deploy/kube-prometheus-stack-operator --timeout=600s || true
 kubectl -n observability rollout restart deploy/kube-prometheus-stack-operator >/dev/null 2>&1 || true
 kubectl -n observability rollout status deploy/kube-prometheus-stack-operator --timeout=600s || true
+
+echo "      Initial deploy success criteria met: ingress, MinIO, MLflow, and Mattermost are rolled out."
+echo "      It is expected for serving apps to remain Degraded until train.csv is uploaded and run-sweep-and-wire-inference.sh completes."
 
 echo "[8/8] Current status and public demo URLs..."
 kubectl get application -n argocd
