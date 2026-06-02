@@ -66,7 +66,7 @@ jobs:
       - name: buildenv/docker-login
         # Only FIPS requires login for private build container. (Forks won't have credentials.)
         if: inputs.fips-enabled
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -226,7 +226,7 @@ jobs:
             $DOCKER_CMD
       - name: Upload coverage to Codecov
         if: ${{ inputs.enablecoverage }}
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           disable_search: true
