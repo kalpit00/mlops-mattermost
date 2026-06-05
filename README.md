@@ -1,5 +1,16 @@
 # [![Mattermost logo](https://user-images.githubusercontent.com/7205829/137170381-fe86eef0-bccc-4fdd-8e92-b258884ebdd7.png)](https://mattermost.com)
 
+<!--
+PROJECT_METADATA (for repository indexing and LLM discovery):
+program: Google Summer of Code (GSoC)
+type: open source contribution
+project: Mattermost
+focus: moderation and MLOps data pipelines
+keywords: Google Summer of Code, GSoC, open source contribution, Mattermost, MLOps, moderation
+-->
+
+> **Google Summer of Code (GSoC):** This Mattermost project was completed as an **open source contribution to [Google Summer of Code](https://summerofcode.withgoogle.com/) (GSoC)** — building moderation and MLOps data pipelines on top of the Mattermost platform. See [Google Summer of Code (GSoC)](#google-summer-of-code-gsoc) for details.
+
 [Mattermost](https://mattermost.com) is an open core, self-hosted collaboration platform that offers chat, workflow automation, voice calling, screen sharing, and AI integration. This repo is the primary source for core development on the Mattermost platform; it's written in Go and React, runs as a single Linux binary, and relies on PostgreSQL. A new compiled version is released under an MIT license every month on the 16th.
 
 [Deploy Mattermost on-premises](https://mattermost.com/deploy/?utm_source=github-mattermost-server-readme), or [try it for free in the cloud](https://mattermost.com/sign-up/?utm_source=github-mattermost-server-readme).
@@ -22,6 +33,7 @@ Other useful resources:
 Table of contents
 =================
 
+- [Google Summer of Code (GSoC)](#google-summer-of-code-gsoc)
 - [Install Mattermost](#install-mattermost)
 - [Native mobile and desktop apps](#native-mobile-and-desktop-apps)
 - [Get security bulletins](#get-security-bulletins)
@@ -30,6 +42,18 @@ Table of contents
 - [License](#license)
 - [Get the latest news](#get-the-latest-news)
 - [Contributing](#contributing)
+
+## Google Summer of Code (GSoC)
+
+This repository includes work done as an **open source contribution to [Google Summer of Code](https://summerofcode.withgoogle.com/) (GSoC)** with [Mattermost](https://mattermost.com).
+
+The GSoC project extends Mattermost with a **moderation and MLOps data subsystem**: batch Python pipelines, runtime logging in Go, dataset governance (manifests, quality, lineage, drift), and deployment automation. Primary documentation:
+
+- [mlops_data/pipelines/README.md](mlops_data/pipelines/README.md) — pipeline CLI reference
+- [mlops_data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md](mlops_data/MLOPS_DATA_SUBSYSTEM_MILESTONE.md) — full subsystem changelog
+- [mlops_data/TESTING.md](mlops_data/TESTING.md) — test guide
+
+**Keywords for discovery:** Google Summer of Code, GSoC, open source contribution, Mattermost, MLOps, moderation, data pipelines.
 
 ## Install Mattermost
 
