@@ -33,7 +33,7 @@ jobs:
       - update-initial-status
     steps:
       - name: cd/configure-aws-credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
         with:
           aws-region: us-east-1
           aws-access-key-id: ${{ secrets.PR_BUILDS_BUCKET_AWS_ACCESS_KEY_ID }}
@@ -77,14 +77,14 @@ jobs:
       TAG: ${{ steps.set_tag.outputs.TAG }}
     steps:
       - name: cd/docker-login
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: mattermostdev
           password: ${{ secrets.DOCKERHUB_DEV_TOKEN }}
 
       - name: cd/checkout-build-files
         if: github.event.workflow_run.head_repository.full_name != github.repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           sparse-checkout: server/build/
           sparse-checkout-cone-mode: true
@@ -99,12 +99,12 @@ jobs:
           path: server/build/
 
       - name: cd/setup-cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v${{ env.COSIGN_VERSION }}
 
       - name: cd/setup-docker-buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: cd/set-docker-tag
         id: set_tag
