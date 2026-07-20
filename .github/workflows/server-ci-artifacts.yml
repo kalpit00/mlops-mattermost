@@ -17,7 +17,7 @@ jobs:
     if: github.repository_owner == 'mattermost' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-22.04
     steps:
-      - uses: mattermost/actions/delivery/update-commit-status@f324ac89b05cc3511cb06e60642ac2fb829f0a63
+      - uses: mattermost/actions/delivery/update-commit-status@c7a06bc642f72fc227deb2cae3af03cff72c0f0d
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -33,7 +33,7 @@ jobs:
       - update-initial-status
     steps:
       - name: cd/configure-aws-credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
+        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d # v6.2.2
         with:
           aws-region: us-east-1
           aws-access-key-id: ${{ secrets.PR_BUILDS_BUCKET_AWS_ACCESS_KEY_ID }}
@@ -77,14 +77,14 @@ jobs:
       TAG: ${{ steps.set_tag.outputs.TAG }}
     steps:
       - name: cd/docker-login
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: mattermostdev
           password: ${{ secrets.DOCKERHUB_DEV_TOKEN }}
 
       - name: cd/checkout-build-files
         if: github.event.workflow_run.head_repository.full_name != github.repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           sparse-checkout: server/build/
           sparse-checkout-cone-mode: true
@@ -99,12 +99,12 @@ jobs:
           path: server/build/
 
       - name: cd/setup-cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v${{ env.COSIGN_VERSION }}
 
       - name: cd/setup-docker-buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: cd/set-docker-tag
         id: set_tag
@@ -163,7 +163,7 @@ jobs:
     needs:
       - build-docker
     steps:
-      - uses: mattermost/actions/delivery/update-commit-status@f324ac89b05cc3511cb06e60642ac2fb829f0a63
+      - uses: mattermost/actions/delivery/update-commit-status@c7a06bc642f72fc227deb2cae3af03cff72c0f0d
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -179,7 +179,7 @@ jobs:
     needs:
       - build-docker
     steps:
-      - uses: mattermost/actions/delivery/update-commit-status@f324ac89b05cc3511cb06e60642ac2fb829f0a63
+      - uses: mattermost/actions/delivery/update-commit-status@c7a06bc642f72fc227deb2cae3af03cff72c0f0d
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
