@@ -22,7 +22,7 @@ jobs:
         working-directory: webapp
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/lint
@@ -37,7 +37,7 @@ jobs:
         working-directory: webapp
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/i18n-extract
@@ -54,7 +54,7 @@ jobs:
         working-directory: webapp
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/check-external-links
@@ -70,7 +70,7 @@ jobs:
         working-directory: webapp
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/lint
@@ -90,7 +90,7 @@ jobs:
         working-directory: webapp
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/test
@@ -121,7 +121,7 @@ jobs:
         working-directory: webapp/channels
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/test
@@ -153,7 +153,7 @@ jobs:
         working-directory: webapp/channels
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/test
@@ -177,7 +177,7 @@ jobs:
         working-directory: webapp/channels
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/download-coverage-artifacts
@@ -218,7 +218,7 @@ jobs:
           npx nyc report --reporter=text-summary --reporter=lcov --temp-dir .nyc_output --report-dir coverage/merged
           echo "Coverage merged successfully"
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           disable_search: true
@@ -233,7 +233,7 @@ jobs:
         working-directory: webapp
     steps:
       - name: ci/checkout-repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: ci/setup
         uses: ./.github/actions/webapp-setup
       - name: ci/build
